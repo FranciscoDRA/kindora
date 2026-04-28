@@ -5,38 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
   <title>Kindora — Accesorios de lectura premium</title>
   <link rel="stylesheet" href="Untitled-1.css"/>
+  <link href="https://fonts.googleapis.com/css2?family=Literata:ital,opsz,wght@0,7..72,300;0,7..72,400;0,7..72,500;0,7..72,600;1,7..72,300;1,7..72,400&display=swap" rel="stylesheet"/>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
-
+  <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
   <script>
     window.SHEET_CSV_URL    = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRFCcqKuzGWh4Iem7shmL6ywV_3lmSxwtrv1upvv7XxpbfZ8n7K82JwysQNDXa9tXyn1C6aE9Ut_lS3/pubhtml?gid=0&single=true';
     window.PLACEHOLDER_IMAGE = 'https://placehold.co/600x600/EDE4D6/4A3728?text=Kindora';
   </script>
-  
-  <style>
-    /* Estilos adicionales para el logo */
-    .logo {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      text-decoration: none;
-    }
-    .logo-text {
-      font-size: 1.4rem;
-      font-weight: 500;
-      letter-spacing: -0.5px;
-      color: #4A3728;
-    }
-    .logo-text em {
-      font-style: italic;
-      color: #D4A373;
-      font-weight: 400;
-    }
-    @media (max-width: 768px) {
-      .logo-text {
-        display: none;
-      }
-    }
-  </style>
 </head>
 <body>
 
@@ -89,7 +65,7 @@
 <nav id="navbar">
   <div class="nav-inner">
     <a href="#inicio" class="logo">
-      <img src="/Proyecto Agustina/img/logo.jpeg" alt="Kindora" style="height: 45px; width: auto; border-radius: 4px;">
+      <img src="../Proyecto Agustina/img/logo.jpeg" alt="Kindora" style="height: 45px; width: auto; border-radius: 4px;">
       <span class="logo-text">kind<em>ora</em></span>
     </a>
     <ul class="nav-links" id="menu">
@@ -105,7 +81,7 @@
           <path d="M5 3V2a2 2 0 0 1 4 0v1"/>
         </svg>
         Bolsa
-        <span id="contador-carrito" class="cart-count">0</span>
+        <span id="contador-carrito-nav" class="cart-count">0</span>
       </button>
       <button type="button" class="hamburguesa" aria-label="Menú"><i class="fas fa-bars"></i></button>
     </div>
@@ -115,270 +91,55 @@
 <!-- Hero -->
 <section id="inicio" class="hero">
   <div class="hero-left">
-    <div class="hero-eyebrow">Colección 2025</div>
-    <h1>Lee con<br><em>elegancia</em><br>sin igual</h1>
-    <p class="hero-sub">Fundas artesanales, protectores y accesorios de cuero para tu Kindle. Diseñados para quienes aman los libros.</p>
+    
+    <h1>Convertí tu<br><em>momento de lectura</em><br>en algo todavía más lindo.</h1>
+    <p class="hero-sub">Accesorios para e-readers y lectores que combinan comodidad, protección y estilo.</p>
     <div class="hero-cta">
       <a href="#coleccion" class="btn-primary"><span>Explorar colección</span></a>
       <a href="#nosotros" class="btn-secondary">Nuestra historia</a>
     </div>
-    <div class="hero-stats">
-      <div><span class="stat-num">4.9 ★</span><span class="stat-label">Valoración</span></div>
-      <div><span class="stat-num">2,400+</span><span class="stat-label">Lectores</span></div>
-      <div><span class="stat-num">100%</span><span class="stat-label">Artesanal</span></div>
-    </div>
+    
   </div>
-  
-  <!-- HERO RIGHT REEMPLAZADO -->
   <div class="hero-right">
-
-    <style>
-    @import url('https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;1,400&family=Crimson+Pro:ital,wght@0,300;0,400;1,300&display=swap');
-    .ki-root{display:flex;justify-content:center;align-items:center;min-height:520px;position:relative;overflow:visible;padding:2rem 0;}
-    .ki-scene{position:relative;width:300px;height:460px;perspective:900px;cursor:pointer;}
-    .ki-glow-bg{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:480px;height:480px;border-radius:50%;background:radial-gradient(ellipse at center,rgba(212,163,115,0.22) 0%,rgba(212,163,115,0.08) 40%,transparent 70%);pointer-events:none;animation:ki-pulse 4s ease-in-out infinite;}
-    @keyframes ki-pulse{0%,100%{transform:translate(-50%,-50%) scale(1);opacity:.8;}50%{transform:translate(-50%,-50%) scale(1.12);opacity:1;}}
-    .ki-device-3d{width:100%;height:100%;transform-style:preserve-3d;transition:transform 0.1s ease-out;animation:ki-float 6s ease-in-out infinite;}
-    @keyframes ki-float{0%,100%{transform:translateY(0px) rotateX(2deg) rotateY(-4deg);}33%{transform:translateY(-8px) rotateX(-1deg) rotateY(3deg);}66%{transform:translateY(-4px) rotateX(3deg) rotateY(-2deg);}}
-    .ki-body{position:absolute;inset:0;background:linear-gradient(135deg,#2a1a10 0%,#1a0e08 50%,#0f0805 100%);border-radius:20px;box-shadow:0 60px 80px rgba(0,0,0,.5),0 20px 40px rgba(0,0,0,.3),inset 0 1px 0 rgba(255,255,255,.04),inset 0 -1px 0 rgba(0,0,0,.4);}
-    .ki-edge-left{position:absolute;left:-4px;top:60px;bottom:60px;width:4px;background:linear-gradient(to right,#0a0604,#1a100a);border-radius:4px 0 0 4px;}
-    .ki-edge-btm{position:absolute;bottom:-4px;left:20px;right:20px;height:4px;background:linear-gradient(to bottom,#1a100a,#0a0604);border-radius:0 0 8px 8px;}
-    .ki-screen-wrap{position:absolute;top:14px;left:12px;right:12px;bottom:55px;border-radius:6px;overflow:hidden;box-shadow:0 0 0 1.5px #0a0604,0 0 20px rgba(240,232,210,.15);}
-    .ki-screen-glow{position:absolute;inset:0;border-radius:6px;pointer-events:none;z-index:20;box-shadow:inset 0 0 30px rgba(240,232,210,.08);}
-    .ki-flash{position:absolute;inset:0;background:#c8c0a8;z-index:30;opacity:0;pointer-events:none;transition:opacity .04s;}
-    .ki-flash.on{opacity:1;}
-    .ki-eink{position:absolute;inset:0;background:#ede5ce;display:flex;flex-direction:column;}
-    .ki-statusbar{display:flex;justify-content:space-between;align-items:center;padding:5px 10px 3px;font-family:sans-serif;font-size:8px;color:#7a6050;border-bottom:.5px solid rgba(160,130,100,.2);}
-    .ki-bat-bar{width:14px;height:7px;border:1px solid #7a6050;border-radius:1.5px;padding:1px;position:relative;}
-    .ki-bat-bar::after{content:'';position:absolute;right:-3px;top:50%;transform:translateY(-50%);width:2px;height:4px;background:#7a6050;border-radius:1px;}
-    .ki-bat-fill{height:100%;width:75%;background:#7a6050;border-radius:.5px;}
-    .ki-pages-wrap{flex:1;position:relative;overflow:hidden;}
-    .ki-page{position:absolute;inset:0;padding:14px 16px 20px;display:flex;flex-direction:column;background:#ede5ce;backface-visibility:hidden;transform-origin:left center;transform-style:preserve-3d;}
-    .ki-page.leaving{animation:ki-flip-out .42s cubic-bezier(.7,0,1,.7) forwards;}
-    .ki-page.entering{animation:ki-flip-in .42s cubic-bezier(0,.3,.3,1) forwards;}
-    @keyframes ki-flip-out{0%{transform:perspective(600px) rotateY(0deg);opacity:1;}100%{transform:perspective(600px) rotateY(-90deg);opacity:.3;}}
-    @keyframes ki-flip-in{0%{transform:perspective(600px) rotateY(90deg);opacity:.3;}100%{transform:perspective(600px) rotateY(0deg);opacity:1;}}
-    .ki-book-badge{font-family:'Lora',serif;font-size:6.5px;letter-spacing:.22em;text-transform:uppercase;color:#b09070;text-align:center;margin-bottom:8px;border-bottom:.5px solid rgba(180,150,100,.3);padding-bottom:5px;}
-    .ki-chap{font-family:'Lora',serif;font-size:6.5px;letter-spacing:.2em;text-transform:uppercase;color:#9a7a60;text-align:center;margin-bottom:4px;}
-    .ki-orn{text-align:center;color:#c4a07a;font-size:9px;margin-bottom:3px;line-height:1;}
-    .ki-ttl{font-family:'Lora',serif;font-size:11.5px;font-weight:500;text-align:center;color:#1e1008;margin-bottom:6px;line-height:1.3;}
-    .ki-rule{width:30px;height:.5px;background:#c4a07a;margin:0 auto 8px;opacity:.5;}
-    .ki-body-text{font-family:'Crimson Pro',Georgia,serif;font-size:11.5px;line-height:1.72;color:#2a1608;text-align:justify;flex:1;white-space:pre-line;overflow:hidden;}
-    .ki-pgnum{text-align:center;font-family:'Lora',serif;font-size:7.5px;color:#a08060;letter-spacing:.12em;padding:4px 0 2px;border-top:.5px solid rgba(180,150,100,.25);}
-    .ki-progress-bar{height:1.5px;background:rgba(196,160,122,.5);transition:width .5s ease;}
-    .ki-controls{position:absolute;left:12px;right:12px;bottom:12px;display:flex;justify-content:space-between;align-items:center;}
-    .ki-sz-group{display:flex;gap:4px;}
-    .ki-sz-btn{font-family:'Lora',serif;font-size:8px;letter-spacing:.06em;color:#8a6a50;background:none;border:.5px solid #3a2518;padding:3px 7px;cursor:pointer;border-radius:2px;transition:all .2s;}
-    .ki-sz-btn:hover,.ki-sz-btn.on{background:#2a1a0e;color:#e8d0a8;}
-    .ki-bright-wrap{display:flex;align-items:center;gap:4px;}
-    .ki-sun{color:#c4a07a;font-size:10px;}
-    .ki-bright-in{-webkit-appearance:none;width:52px;height:2px;background:#3a2518;border-radius:1px;outline:none;cursor:pointer;}
-    .ki-bright-in::-webkit-slider-thumb{-webkit-appearance:none;width:9px;height:9px;border-radius:50%;background:#c4a07a;}
-    .ki-home{width:32px;height:32px;border-radius:50%;border:1.5px solid #3a2518;background:#150e08;cursor:pointer;position:absolute;left:50%;bottom:10px;transform:translateX(-50%);display:flex;align-items:center;justify-content:center;transition:box-shadow .2s;box-shadow:0 2px 8px rgba(0,0,0,.4);}
-    .ki-home:hover{box-shadow:0 0 12px rgba(196,160,122,.4);}
-    .ki-tap-z{position:absolute;inset:0;z-index:10;}
-    .ki-tap-l{position:absolute;left:0;top:0;bottom:0;width:45%;}
-    .ki-tap-r{position:absolute;right:0;top:0;bottom:0;width:45%;}
-    .ki-particles{position:absolute;inset:0;pointer-events:none;z-index:25;overflow:hidden;}
-    .ki-particle{position:absolute;font-family:'Lora',serif;font-size:8px;color:rgba(196,160,122,.8);pointer-events:none;animation:ki-rise linear forwards;}
-    @keyframes ki-rise{0%{opacity:.8;transform:translateY(0) translateX(0);}100%{opacity:0;transform:translateY(-100px) translateX(var(--drift));}}
-    .ki-book-strip{position:absolute;right:-50px;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:8px;align-items:center;}
-    .ki-book-thumb{width:34px;height:50px;border-radius:2px;cursor:pointer;transition:all .25s;display:flex;align-items:center;justify-content:center;font-family:'Lora',serif;font-size:6.5px;font-weight:500;writing-mode:vertical-rl;letter-spacing:.1em;border:1px solid rgba(0,0,0,.2);box-shadow:2px 2px 8px rgba(0,0,0,.25);overflow:hidden;position:relative;}
-    .ki-book-thumb::after{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:rgba(0,0,0,.15);}
-    .ki-book-thumb:hover{transform:translateX(-4px) scale(1.05);}
-    .ki-book-thumb.selected{transform:translateX(-8px) scale(1.08);box-shadow:4px 4px 12px rgba(0,0,0,.35);}
-    .ki-hint{font-family:'Lora',serif;font-size:11px;color:var(--sepia);text-align:center;font-style:italic;letter-spacing:.08em;margin-top:12px;opacity:.8;min-height:18px;}
-    </style>
-
-    <div class="ki-root">
-      <div class="ki-glow-bg"></div>
-      <div class="ki-scene" id="ki-scene">
-        <div class="ki-device-3d" id="ki-dev3d">
-          <div class="ki-body">
-            <div class="ki-edge-left"></div>
-            <div class="ki-edge-btm"></div>
-            <div class="ki-screen-wrap">
-              <div class="ki-screen-glow" id="ki-sglow"></div>
-              <div class="ki-flash" id="ki-flash"></div>
-              <div class="ki-eink">
-                <div class="ki-statusbar">
-                  <span id="ki-time" style="font-weight:600;letter-spacing:.05em"></span>
-                  <div style="display:flex;align-items:center;gap:3px">
-                    <svg width="12" height="9" viewBox="0 0 12 9" fill="none"><path d="M1 4C2.5 2.2 4.6 1 6 1s3.5 1.2 5 3" stroke="#7a6050" stroke-width="1.2" stroke-linecap="round"/><path d="M2.5 6C3.5 4.8 4.7 4 6 4s2.5.8 3.5 2" stroke="#7a6050" stroke-width="1.2" stroke-linecap="round"/><circle cx="6" cy="8" r="1" fill="#7a6050"/></svg>
-                    <div class="ki-bat-bar"><div class="ki-bat-fill"></div></div>
-                  </div>
-                </div>
-                <div class="ki-pages-wrap">
-                  <div class="ki-page" id="ki-page">
-                    <div class="ki-book-badge" id="ki-badge"></div>
-                    <div class="ki-chap" id="ki-chap"></div>
-                    <div class="ki-orn">✦</div>
-                    <div class="ki-ttl" id="ki-ttl"></div>
-                    <div class="ki-rule"></div>
-                    <div class="ki-body-text" id="ki-body"></div>
-                  </div>
-                  <div class="ki-particles" id="ki-parts"></div>
-                  <div class="ki-tap-z">
-                    <div class="ki-tap-l" id="ki-tapl"></div>
-                    <div class="ki-tap-r" id="ki-tapr"></div>
-                  </div>
-                </div>
-                <div class="ki-pgnum" id="ki-pgnum"></div>
-                <div class="ki-progress-bar" id="ki-prog"></div>
-              </div>
-            </div>
-            <div class="ki-controls">
-              <div class="ki-sz-group" id="ki-szg">
-                <button class="ki-sz-btn" data-sz="sm">A−</button>
-                <button class="ki-sz-btn on" data-sz="md">A</button>
-                <button class="ki-sz-btn" data-sz="lg">A+</button>
-              </div>
-              <div class="ki-bright-wrap">
-                <span class="ki-sun">☀</span>
-                <input type="range" class="ki-bright-in" id="ki-bright" min="0" max="70" value="0">
-              </div>
-            </div>
-            <div class="ki-home" id="ki-home">
-              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="#c4a07a" stroke-width="1.2"><path d="M2 5.5L6 2l4 3.5V10H8V7.5H4V10H2z"/></svg>
-            </div>
-          </div>
-        </div>
-        <div class="ki-book-strip" id="ki-books"></div>
+    <!-- SHOWCASE CAROUSEL -->
+    <div class="showcase-carousel" id="showcase-carousel">
+      <div class="showcase-glow"></div>
+      <div class="showcase-stage" id="showcase-stage">
+        <div class="showcase-brackets"><span></span></div>
       </div>
-      <div class="ki-hint" id="ki-hint">Tocá para pasar la página · Elegí un libro →</div>
+      <div class="showcase-info" id="showcase-info">
+        <span class="sc-counter"  id="sc-counter">01 / —</span>
+        <div  class="sc-categoria" id="sc-categoria"></div>
+        <div  class="sc-name"      id="sc-name">Cargando...</div>
+        <div  class="sc-price"     id="sc-price"></div>
+        <a    class="sc-link"      id="sc-link" href="#coleccion">
+          <span class="sc-line"></span>
+          Ver producto
+          <span class="sc-line"></span>
+        </a>
+      </div>
+      <div class="sc-progress-wrap">
+        <div class="sc-progress-fill" id="sc-progress"></div>
+      </div>
+      <div class="sc-nav">
+        <button class="sc-nav-btn" id="sc-prev" aria-label="Anterior">
+          <svg width="11" height="11" viewBox="0 0 11 11" fill="none" stroke="currentColor" stroke-width="1.3">
+            <polyline points="7.5,1 3.5,5.5 7.5,10"/>
+          </svg>
+        </button>
+        <div class="sc-dots" id="sc-dots"></div>
+        <button class="sc-nav-btn" id="sc-next" aria-label="Siguiente">
+          <svg width="11" height="11" viewBox="0 0 11 11" fill="none" stroke="currentColor" stroke-width="1.3">
+            <polyline points="3.5,1 7.5,5.5 3.5,10"/>
+          </svg>
+        </button>
+      </div>
     </div>
-
-    <script>
-    (function(){
-      const BOOKS=[
-        {spine:"El secreto\ndel bosque",spineColor:"#5c3d2e",spineText:"#e8d5b0",badge:"Ficción · Cap. I",chap:"Capítulo primero",pages:[
-          {t:"El secreto del bosque",p:"La mañana llegó envuelta en un silencio extraño, como si el bosque mismo hubiera contenido la respiración durante la noche. Mara abrió los ojos antes de que el sol tocara el horizonte.\n\nDesde su ventana, los robles centenarios se erguían inmóviles, sus ramas formando una bóveda oscura contra el cielo color ceniza.",n:"— 12 —"},
-          {t:"La vibración",p:"—¿Lo escuchaste anoche? —susurró Tomás desde el umbral.\n\nMara asintió. El sonido —aquella vibración grave que recorrió el suelo como un pulso subterráneo— la había despertado a las tres. No era el viento. Era algo más antiguo, algo que dormía debajo de las raíces.",n:"— 13 —"},
-          {t:"El mapa",p:"Encontró el mapa doblado entre las páginas del diario de su abuela. Las líneas eran tenues, trazadas con mano temblorosa, pero el camino era claro: al corazón del bosque.\n\n\"Allí duerme lo que no debe ser despertado.\"",n:"— 14 —"},
-        ]},
-        {spine:"Café\nen Lisboa",spineColor:"#2d4a3e",spineText:"#c8e0d0",badge:"Romance · Cap. III",chap:"Capítulo tercero",pages:[
-          {t:"El café de la esquina",p:"El café olía a cardamomo y a conversaciones a medias. Elena entró sin saber por qué —o quizás sabiéndolo demasiado bien— y eligió la mesa junto a la ventana, desde donde Lisboa se desplegaba como una acuarela lavada por la lluvia.",n:"— 41 —"},
-          {t:"Lo de siempre",p:"—¿Lo de siempre? —preguntó él, aunque jamás la había visto.\n\n\"Eso depende de lo que sea lo de siempre.\"\n\nÉl trajo un galão caliente, una tostada con mermelada de naranja amarga, y la mirada de alguien que acaba de encontrar algo que no estaba buscando.",n:"— 42 —"},
-          {t:"La lluvia",p:"Llovió toda la tarde. Ninguno de los dos lo notó.\n\nHablaron de novelas que cambiaron sus vidas, de ciudades prometidas, de la diferencia entre la soledad que duele y la que descansa.\n\nCuando cerró el café, ella se dio cuenta de que no había anotado su nombre.",n:"— 43 —"},
-        ]},
-        {spine:"Física\ndel instante",spineColor:"#1e2a4a",spineText:"#b0c4e8",badge:"Ciencia · Cap. VII",chap:"Capítulo séptimo",pages:[
-          {t:"El tiempo no existe",p:"La física moderna sugiere algo perturbador: el tiempo, tal como lo experimentamos, es una ilusión elaborada por nuestra mente.\n\nA nivel cuántico, pasado y futuro coexisten con el presente. El universo no tiene reloj; somos nosotros quienes lo inventamos para sobrevivir.",n:"— 98 —"},
-          {t:"Dos presentes",p:"Cada observador tiene su propio presente, ligeramente desplazado según su velocidad y posición en el espacio-tiempo.\n\nDos personas que se miran a los ojos no comparten exactamente el mismo instante. El amor, en ese sentido, es un acto de fe cuántica.",n:"— 99 —"},
-          {t:"La flecha del tiempo",p:"¿Por qué sentimos que el tiempo fluye hacia adelante? La respuesta está en la entropía.\n\nNo recordamos el futuro porque aún tiene orden. La memoria es desorden acumulado. Vivir es deshacerse, lentamente, de la perfección.",n:"— 100 —"},
-        ]}
-      ];
-      const WORDS=["página","leer","historia","libro","silencio","luz","tiempo","amor","bosque","café","sueño","voz"];
-      let bi=0,pi=0,sz='md',anim=false;
-      const flash=document.getElementById('ki-flash');
-      const page=document.getElementById('ki-page');
-      const badge=document.getElementById('ki-badge');
-      const chap=document.getElementById('ki-chap');
-      const ttl=document.getElementById('ki-ttl');
-      const body=document.getElementById('ki-body');
-      const pgnum=document.getElementById('ki-pgnum');
-      const prog=document.getElementById('ki-prog');
-      const hint=document.getElementById('ki-hint');
-      const parts=document.getElementById('ki-parts');
-      const dev3d=document.getElementById('ki-dev3d');
-      const scene=document.getElementById('ki-scene');
-
-      function render(){
-        const b=BOOKS[bi],p=b.pages[pi];
-        badge.textContent=b.badge; chap.textContent=b.chap;
-        ttl.textContent=p.t; body.textContent=p.p;
-        body.style.fontSize=sz==='sm'?'9.5px':sz==='lg'?'13px':'11.5px';
-        pgnum.textContent=p.n;
-        prog.style.width=((pi+1)/b.pages.length*100)+'%';
-      }
-      function spawnParticles(){
-        for(let i=0;i<4;i++){
-          const el=document.createElement('span');
-          el.className='ki-particle';
-          el.textContent=WORDS[Math.floor(Math.random()*WORDS.length)];
-          const x=20+Math.random()*60;
-          const drift=(Math.random()-.5)*40+'px';
-          el.style.cssText=`left:${x}%;bottom:${10+Math.random()*40}%;--drift:${drift};animation-duration:${1.5+Math.random()}s;animation-delay:${Math.random()*.3}s`;
-          parts.appendChild(el);
-          setTimeout(()=>el.remove(),2500);
-        }
-      }
-      function doFlash(cb){
-        flash.classList.add('on');
-        setTimeout(()=>{flash.classList.remove('on');cb&&cb();},80);
-      }
-      function flipPage(dir){
-        if(anim)return;
-        const b=BOOKS[bi];
-        let npi=pi+dir,nbi=bi;
-        if(npi<0){if(bi>0){nbi=bi-1;npi=BOOKS[nbi].pages.length-1;}else return;}
-        if(npi>=b.pages.length){if(bi<BOOKS.length-1){nbi=bi+1;npi=0;}else return;}
-        anim=true; spawnParticles();
-        page.classList.add('leaving');
-        setTimeout(()=>{
-          doFlash(()=>{
-            bi=nbi;pi=npi;
-            page.classList.remove('leaving'); render(); updateStrip();
-            page.classList.add('entering');
-            setTimeout(()=>{page.classList.remove('entering');anim=false;},420);
-          });
-        },200);
-      }
-      function updateStrip(){
-        document.querySelectorAll('.ki-book-thumb').forEach((el,i)=>el.classList.toggle('selected',i===bi));
-      }
-      function buildStrip(){
-        const strip=document.getElementById('ki-books');
-        BOOKS.forEach((b,i)=>{
-          const el=document.createElement('div');
-          el.className='ki-book-thumb'+(i===bi?' selected':'');
-          el.style.background=b.spineColor; el.style.color=b.spineText;
-          el.textContent=b.spine;
-          el.addEventListener('click',()=>{bi=i;pi=0;doFlash(()=>{render();updateStrip();});hint.textContent='Tocá para pasar la página';});
-          strip.appendChild(el);
-        });
-      }
-      document.getElementById('ki-tapr').addEventListener('click',()=>{flipPage(1);hint.textContent='← anterior · siguiente →';});
-      document.getElementById('ki-tapl').addEventListener('click',()=>{flipPage(-1);hint.textContent='← anterior · siguiente →';});
-      document.getElementById('ki-home').addEventListener('click',()=>{bi=(bi+1)%BOOKS.length;pi=0;doFlash(()=>{render();updateStrip();});});
-      document.getElementById('ki-szg').addEventListener('click',e=>{
-        const btn=e.target.closest('[data-sz]'); if(!btn)return;
-        sz=btn.dataset.sz;
-        document.querySelectorAll('.ki-sz-btn').forEach(b=>b.classList.remove('on'));
-        btn.classList.add('on'); render();
-      });
-      document.getElementById('ki-bright').addEventListener('input',function(){
-        const v=parseInt(this.value);
-        flash.style.background=`rgba(255,245,220,1)`;
-        flash.style.opacity=v>0?(v/100*.7):0;
-        document.getElementById('ki-sglow').style.boxShadow=`inset 0 0 ${v/2}px rgba(255,235,180,0.${Math.floor(v/10)})`;
-      });
-      scene.addEventListener('mousemove',e=>{
-        const r=scene.getBoundingClientRect();
-        const dx=(e.clientX-(r.left+r.width/2))/r.width;
-        const dy=(e.clientY-(r.top+r.height/2))/r.height;
-        dev3d.style.animation='none';
-        dev3d.style.transform=`rotateX(${-dy*12}deg) rotateY(${dx*16}deg) translateY(-4px)`;
-      });
-      scene.addEventListener('mouseleave',()=>{
-        dev3d.style.animation='ki-float 6s ease-in-out infinite';
-        dev3d.style.transform='';
-      });
-      function clock(){
-        const n=new Date();
-        document.getElementById('ki-time').textContent=n.getHours().toString().padStart(2,'0')+':'+n.getMinutes().toString().padStart(2,'0');
-      }
-      clock(); setInterval(clock,15000);
-      buildStrip(); render();
-    })();
-    </script>
-
   </div>
 </section>
 
-<!-- Divisor -->
-<div style="padding:0 48px;position:relative;z-index:1">
-  <div class="section-divider"><span class="divider-ornament">✦ ✦ ✦</span></div>
-</div>
+
+
 
 <!-- Features -->
 <div class="feature-strip">
@@ -425,7 +186,7 @@
 <section id="coleccion" class="products-section">
   <div class="container">
     <div class="section-header reveal">
-      <span class="section-tag">Colección 2025</span>
+     
       <h2>Accesorios para <em>lectores</em></h2>
       <p class="section-sub">Cada pieza pensada para realzar tu ritual de lectura.</p>
     </div>
@@ -495,13 +256,18 @@
         </div>
         <div class="editorial-ornament"></div>
       </div>
-      <div class="editorial-content reveal">
-        <span class="section-tag">Nuestra historia</span>
-        <blockquote>"Cada lector merece un accesorio tan bien diseñado como el libro que sostiene."</blockquote>
-        <p>Kindora nació de una obsesión compartida: el ritual de la lectura. Los libros merecen compañía digna — fundas que protejan sin quitar protagonismo, accesorios que mejoren sin interrumpir.</p>
-        <p>Trabajamos con artesanos que comparten nuestra filosofía: menos es más, pero lo poco debe ser perfecto. Cada puntada, cada remache, cada hoja de cuero es elegida a mano.</p>
-        <div class="editorial-signature">— El equipo Kindora</div>
-      </div>
+     <div class="editorial-content reveal">
+  <span class="section-tag">Nuestra historia</span>
+  <blockquote>"Cada lector merece un accesorio tan bien diseñado como el libro que sostiene."</blockquote>
+  
+  <p>Kindora nació entre lecturas, recomendaciones y esas ganas de hacer más lindo el momento de leer. Somos Valentina y Agustina, dos amigas apasionadas por la lectura y usuarias de Kindle desde hace años.</p>
+  
+  <p>Con el tiempo fuimos descubriendo accesorios que nos hacían la experiencia más cómoda, más práctica y también más linda: fundas, straps, protectores y pequeños detalles que terminaban acompañándonos todos los días. Pero también notamos algo: en nuestro mercado no había demasiadas opciones pensadas para quienes usamos estos dispositivos de forma cotidiana y queremos cuidarlos sin perder estilo.</p>
+  
+  <p>Así nació Kindora: con la ilusión de compartir una selección de accesorios que nosotras mismas elegiríamos, usaríamos y recomendaríamos. Para personas como nosotras: lectoras, curiosas, detallistas y felices de encontrar ese accesorio que hace que leer se sienta todavía más propio.</p>
+  
+  <div class="editorial-signature">— Valentina y Agustina</div>
+</div>
     </div>
   </div>
 </section>
@@ -627,44 +393,19 @@
   </div>
 </div>
 
-<!-- ════════════════════════════════════
-     MODAL DE TRANSFERENCIA BANCARIA
-     Aparece al hacer click en "Comprar"
-     ════════════════════════════════════ -->
+<!-- Modal de transferencia bancaria -->
 <div id="aviso-pre-compra-modal" role="dialog" aria-modal="true" aria-label="Datos de transferencia">
   <div class="modal-transferencia-card">
-
     <div class="mt-icon">🏦</div>
     <h3>Datos para la transferencia</h3>
-    <p class="mt-subtitle">
-      Realizá la transferencia y envianos el comprobante por WhatsApp para confirmar tu pedido.
-    </p>
-
-    <!-- Datos bancarios — editá estos valores en kindora.js -->
+    <p class="mt-subtitle">Realizá la transferencia y envianos el comprobante por WhatsApp para confirmar tu pedido.</p>
     <div class="mt-cuenta">
-      <div class="mt-row">
-        <span>Banco</span>
-        <strong>BROU</strong>
-      </div>
-      <div class="mt-row">
-        <span>N° de cuenta</span>
-        <strong>001-234567/8</strong>
-      </div>
-      <div class="mt-row">
-        <span>Titular</span>
-        <strong>Kindora S.A.S</strong>
-      </div>
-      <div class="mt-row mt-total">
-        <span>Total a transferir</span>
-        <strong id="monto-transferencia">$U 0</strong>
-      </div>
+      <div class="mt-row"><span>Banco</span><strong>BROU</strong></div>
+      <div class="mt-row"><span>N° de cuenta</span><strong>001-234567/8</strong></div>
+      <div class="mt-row"><span>Titular</span><strong>Kindora S.A.S</strong></div>
+      <div class="mt-row mt-total"><span>Total a transferir</span><strong id="monto-transferencia">$U 0</strong></div>
     </div>
-
-    <p class="mt-instrucciones">
-      Una vez realizada la transferencia, envianos el comprobante junto con tu nombre y dirección de entrega.
-    </p>
-
-    <!-- Botón de WhatsApp (el JS actualiza el link con el detalle del pedido) -->
+    <p class="mt-instrucciones">Una vez realizada la transferencia, envianos el comprobante junto con tu nombre y dirección de entrega.</p>
     <a id="wsp-link" href="#" target="_blank" rel="noopener" class="btn-whatsapp">
       <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0">
         <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/>
@@ -672,12 +413,10 @@
       </svg>
       Enviar comprobante por WhatsApp
     </a>
-
     <div class="mt-actions">
       <button type="button" id="btn-entendido-aviso">✓ &nbsp;Listo, ya transferí</button>
       <button type="button" id="btn-cancelar-aviso">Cancelar y volver</button>
     </div>
-
   </div>
 </div>
 
@@ -686,8 +425,6 @@
   <i class="fas fa-arrow-up"></i>
 </button>
 
-<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 <script src="Untitled-1.js"></script>
 </body>
 </html>
