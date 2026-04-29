@@ -90,49 +90,46 @@ function actualizarCategorias() {
 // ===============================
 // CARGA DESDE GOOGLE SHEETS
 // ===============================
+const FIREBASE_URL = 'https://kindora-47c88-default-rtdb.firebaseio.com/';
+
 async function cargarProductosDesdeSheets() {
   const galeria = getElement('galeria-productos');
   try {
     if (galeria) {
       galeria.innerHTML = `<div class="loader-wrapper"><div class="loader"></div><p>Cargando productos...</p></div>`;
     }
-    const resp = await fetch(CSV_URL, { headers: { 'Cache-Control': 'no-store' } });
-    if (!resp.ok) throw new Error('Error al cargar productos.');
-    const csvText = await resp.text();
-    if (typeof Papa === 'undefined') throw new Error('Papa Parse no disponible');
-    const { data, errors } = Papa.parse(csvText, {
-      header: true,
-      skipEmptyLines: true,
-      transformHeader: h => h
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, ' ')
-        .toLowerCase()
-        .replace(/\s+/g, ' ')
-    });
-    if (errors.length) throw new Error('Error al procesar el CSV');
-    if (!data || data.length === 0) throw new Error('No se encontraron productos');
-    productos = data
+
+    const resp = await fetch(FIREBASE_URL + '.json');
+    if (!resp.ok) throw new Error('Error al cargar productos desde Firebase.');
+
+    const data = await resp.json();
+    if (!data) throw new Error('No se encontraron productos');
+
+    productos = Object.values(data)
       .filter(r => r.id && r.nombre && r.precio)
       .map(r => ({
         id:          parseInt(r.id, 10),
-        nombre:      r.nombre ? r.nombre.trim() : 'Sin Nombre',
-        descripcion: r.descripcion ? r.descripcion.trim() : '',
+        nombre:      r.nombre ? String(r.nombre).trim() : 'Sin Nombre',
+        descripcion: r.descripcion ? String(r.descripcion).trim() : '',
         precio:      parseFloat(r.precio) || 0,
-        stock:       parseInt(r.cantidad, 10) || 0,
-        imagenes:    (r.foto && r.foto.trim() !== '')
-                       ? r.foto.split(',').map(x => x.trim()).filter(x => !!x)
-                       : [],
-        adicionales: r.adicionales ? r.adicionales.trim() : '',
+        stock:       parseInt(r.stock, 10) || 0,
+        imagenes:    Array.isArray(r.imagenes)
+                       ? r.imagenes
+                       : (r.imagenes ? String(r.imagenes).split(',').map(x => x.trim()).filter(Boolean) : []),
+        adicionales: r.adicionales ? String(r.adicionales).trim() : '',
         alto:        parseFloat(r.alto) || null,
         ancho:       parseFloat(r.ancho) || null,
         profundidad: parseFloat(r.profundidad) || null,
-        categoria:   r.categoria ? r.categoria.trim().toLowerCase() : 'otros',
-        tamaño:      parseFloat(r.tamaño) || null,
-        vendido:     r.vendido ? r.vendido.trim().toLowerCase() === 'true' : false,
-        estado:      r.estado ? r.estado.trim() : ''
+        categoria:   r.categoria ? String(r.categoria).trim().toLowerCase() : 'otros',
+        vendido:     r.vendido === true || String(r.vendido).toLowerCase() === 'true',
+        estado:      r.estado ? String(r.estado).trim() : '',
+        nuevoAt:     r.nuevoAt || null
       }));
+
     actualizarCategorias();
     actualizarUI();
+    initShowcaseCarousel();
+
   } catch (e) {
     if (galeria) {
       galeria.innerHTML = '<p style="text-align:center;padding:60px;color:var(--brown-mid);font-style:italic">No se pudieron cargar los productos. Intentá recargar la página.</p>';
@@ -462,35 +459,23 @@ function initShowcaseCarousel() {
   const INTERVAL = 4800;
   const DEMO_ITEMS = [
     { 
-      nombre: 'Funda Caoba Premium', 
-      categoria: 'Fundas', 
-      precio: 1890, 
-      img: 'img/WhatsApp%20Image%202026-04-28%20at%2010.45.47.jpeg' 
-    },
+  nombre: 'Funda Caoba Premium', 
+  categoria: 'Fundas', 
+  precio: 1890, 
+  img: 'img/WhatsApp%20Image%202026-04-28%20at%2010.45.47.jpeg' 
+},
     { 
-      nombre: 'Protector Ébano', 
-      categoria: 'Protectores', 
-      precio: 2100, 
-      img: 'img/WhatsApp%20Image%202026-04-28%20at%2010.46.08.jpeg'
-    },
+  nombre: 'Funda Caoba Premium', 
+  categoria: 'Fundas', 
+  precio: 1890, 
+  img: 'img/WhatsApp Image 2026-04-28 at 10.46.08.jpeg' 
+},
     { 
-      nombre: 'Estuche Viajero', 
-      categoria: 'Accesorios', 
-      precio: 1450, 
-      img: 'img/WhatsApp%20Image%202026-04-28%20at%2010.46.16.jpeg'
-    },
-    { 
-      nombre: 'Cubierta Sepia', 
-      categoria: 'Fundas', 
-      precio: 2350, 
-      img: 'img/WhatsApp%20Image%202026-04-28%20at%2010.49.01.jpeg'
-    },
-    { 
-      nombre: 'Atril Nogal', 
-      categoria: 'Accesorios', 
-      precio: 980, 
-      img: 'img/WhatsApp%20Image%202026-04-28%20at%2010.45.11.jpeg'
-    }
+  nombre: 'Funda Caoba Premium', 
+  categoria: 'Fundas', 
+  precio: 1890, 
+  img: 'img/WhatsApp Image 2026-04-28 at 10.46.16.jpeg' 
+},
   ];
   const raw = (typeof productos !== 'undefined' && productos.length > 0) ? productos.slice(0, 8) : DEMO_ITEMS;
   const items = raw.map(p => ({
