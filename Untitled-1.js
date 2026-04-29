@@ -99,7 +99,7 @@ async function cargarProductosDesdeSheets() {
       galeria.innerHTML = `<div class="loader-wrapper"><div class="loader"></div><p>Cargando productos...</p></div>`;
     }
 
-    const resp = await fetch(FIREBASE_URL + '.json');
+    const resp = await fetch(FIREBASE_URL + 'productos/.json');
     if (!resp.ok) throw new Error('Error al cargar productos desde Firebase.');
 
     const data = await resp.json();
