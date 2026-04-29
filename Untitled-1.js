@@ -461,36 +461,37 @@ function initShowcaseCarousel() {
   const PLACEHOLDER = window.PLACEHOLDER_IMAGE || 'https://placehold.co/480x640/EDE4D6/4A3728?text=Kindora';
   const INTERVAL = 4800;
   const DEMO_ITEMS = [
-  { 
-    nombre: 'Funda Caoba Premium', 
-    categoria: 'Fundas', 
-    precio: 1890, 
-    img: 'img/WhatsApp%20Image%202026-04-28%20at%2010.45.47.jpeg' 
-  },
-  { 
-    nombre: 'Funda Caoba Premium', 
-    categoria: 'Fundas', 
-    precio: 1890, 
-    img: 'img/WhatsApp%20Image%202026-04-28%20at%2010.46.08.jpeg'  // ← corregido
-  },
-  { 
-    nombre: 'Funda Caoba Premium', 
-    categoria: 'Fundas', 
-    precio: 1890, 
-    img: 'img/WhatsApp%20Image%202026-04-28%20at%2010.46.16.jpeg'  // ← corregido
-  },
+ { 
+      nombre: 'Funda Caoba Premium', 
+      categoria: 'Fundas', 
+      precio: 1890, 
+      img: 'img/WhatsApp%20Image%202026-04-28%20at%2010.45.47.jpeg' 
+    },
     { 
-    nombre: 'Funda Caoba Premium', 
-    categoria: 'Fundas', 
-    precio: 1890, 
-    img: 'img/WhatsApp%20Image%202026-04-28%20at%2010.49.01.jpeg'  // ← corregido
-  },
+      nombre: 'Funda Caoba Premium', 
+      categoria: 'Fundas', 
+      precio: 1890, 
+      img: 'img/WhatsApp%20Image%202026-04-28%20at%2010.46.08.jpeg'
+    },
     { 
-    nombre: 'Funda Caoba Premium', 
-    categoria: 'Fundas', 
-    precio: 1890, 
-    img: 'img/WhatsApp%20Image%202026-04-28%20at%2010.45.11.jpeg.'  // ← corregido
-  },
+      nombre: 'Funda Caoba Premium', 
+      categoria: 'Fundas', 
+      precio: 1890, 
+      img: 'img/WhatsApp%20Image%202026-04-28%20at%2010.46.16.jpeg'
+    },
+    { 
+      nombre: 'Funda Caoba Premium', 
+      categoria: 'Fundas', 
+      precio: 1890, 
+      img: 'img/WhatsApp%20Image%202026-04-28%20at%2010.49.01.jpeg'
+    },
+    { 
+      nombre: 'Funda Caoba Premium', 
+      categoria: 'Fundas', 
+      precio: 1890, 
+      img: 'img/WhatsApp%20Image%202026-04-28%20at%2010.45.11.jpeg'  // ← quite el punto extra
+    }
+  ];
 ];
   const raw = (typeof productos !== 'undefined' && productos.length > 0) ? productos.slice(0, 8) : DEMO_ITEMS;
   const items = raw.map(p => ({
