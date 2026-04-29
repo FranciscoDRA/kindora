@@ -479,6 +479,18 @@ function initShowcaseCarousel() {
     precio: 1890, 
     img: 'img/WhatsApp%20Image%202026-04-28%20at%2010.46.16.jpeg'  // ← corregido
   },
+    { 
+    nombre: 'Funda Caoba Premium', 
+    categoria: 'Fundas', 
+    precio: 1890, 
+    img: 'img/WhatsApp%20Image%202026-04-28%20at%2010.49.01.jpeg'  // ← corregido
+  },
+    { 
+    nombre: 'Funda Caoba Premium', 
+    categoria: 'Fundas', 
+    precio: 1890, 
+    img: 'img/WhatsApp%20Image%202026-04-28%20at%2010.45.11.jpeg.'  // ← corregido
+  },
 ];
   const raw = (typeof productos !== 'undefined' && productos.length > 0) ? productos.slice(0, 8) : DEMO_ITEMS;
   const items = raw.map(p => ({
