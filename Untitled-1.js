@@ -106,7 +106,7 @@ async function cargarProductosDesdeSheets() {
     if (!data) throw new Error('No se encontraron productos');
 
     productos = Object.values(data)
-      .filter(r => r.id && r.nombre && r.precio)
+      .filter(r => r && r.id && r.nombre && r.precio)
       .map(r => ({
         id:          parseInt(r.id, 10),
         nombre:      r.nombre ? String(r.nombre).trim() : 'Sin Nombre',
