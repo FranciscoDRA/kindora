@@ -173,8 +173,8 @@ async function liberarReserva(reservaKey, productoId, cantidad) {
         return (stock || 0) + cantidad;
       });
       await db.ref(`reservas/${reservaKey}`).remove();
+      console.log(`✅ Stock liberado: +${cantidad} de producto ${productoId}`);
     } else {
-      // Fallback con fetch
       const resp = await fetch(`${FIREBASE_URL}productos/${key}/stock.json`);
       const stockActual = await resp.json();
       const nuevoStock = (parseInt(stockActual) || 0) + cantidad;
@@ -187,8 +187,6 @@ async function liberarReserva(reservaKey, productoId, cantidad) {
         method: 'DELETE'
       });
     }
-    
-    console.log(`✅ Stock liberado: ${cantidad} unidades de producto ${productoId}`);
   } catch (e) {
     console.error('Error liberando reserva:', e);
   }
@@ -382,28 +380,50 @@ async function agregarAlCarrito(id, cantidad = 1) {
   }
 }
 
-// Helper para descontar/agregar stock sin reserva
-async function descontarStock(id, cantidad) {
-  const key = getDbKeyFromId(id);
-  if (HAS_FIREBASE_SDK && db && typeof db.ref === 'function') {
-    const productRef = db.ref(`productos/${key}/stock`);
-    const { committed } = await productRef.transaction((stock) => {
-      stock = stock || 0;
-      const nuevo = stock + cantidad;
-      if (nuevo < 0) return;
-      return nuevo;
+// ===============================
+// VACIAR CARRITO (libera todas las reservas)
+// ===============================
+async function vaciarCarrito() {
+  if (!carrito || carrito.length === 0) {
+    mostrarNotificacion('El carrito ya está vacío', 'info');
+    return;
+  }
+
+  mostrarNotificacion('Vaciando bolsa...', 'info');
+
+  try {
+    const promesas = carrito.map(async (item) => {
+      if (item.reservaKey) {
+        if (timersExpiracion[item.reservaKey]) {
+          clearTimeout(timersExpiracion[item.reservaKey]);
+          delete timersExpiracion[item.reservaKey];
+        }
+        await liberarReserva(item.reservaKey, item.id, item.cantidad);
+      } else {
+        // Fallback para items sin reservaKey (carrito viejo)
+        const key = getDbKeyFromId(item.id);
+        if (HAS_FIREBASE_SDK) {
+          await db.ref(`productos/${key}/stock`).transaction(stock => (stock || 0) + item.cantidad);
+        }
+      }
     });
-    return committed;
-  } else {
-    const resp = await fetch(`${FIREBASE_URL}productos/${key}/stock.json`);
-    const stockActual = await resp.json();
-    const nuevoStock = Math.max(0, (parseInt(stockActual) || 0) + cantidad);
-    const updateResp = await fetch(`${FIREBASE_URL}productos/${key}/stock.json`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(nuevoStock)
-    });
-    return updateResp.ok;
+
+    await Promise.all(promesas);
+
+    carrito = [];
+    guardarCarrito();
+    renderizarCarrito();
+    renderizarProductos();
+    actualizarContadorCarrito();
+
+    if (document.querySelector('.carrito-panel')?.classList.contains('open')) {
+      toggleCarrito();
+    }
+
+    mostrarNotificacion('Bolsa vaciada correctamente', 'exito');
+  } catch (error) {
+    console.error('Error al vaciar carrito:', error);
+    mostrarNotificacion('Error al vaciar la bolsa', 'error');
   }
 }
 
@@ -450,7 +470,7 @@ async function cargarProductosDesdeFirebase() {
   } catch (e) {
     console.error('Error cargando productos:', e);
     if (galeria) {
-      galeria.innerHTML = '<p style="text-align:center;padding:60px;color:var(--brown-mid);font-style:italic">No se pudieron cargar los productos.</p>';
+      galeria.innerHTML = '<p style="text-align:center;padding:60px;">No se pudieron cargar los productos.</p>';
     }
   }
 }
@@ -698,16 +718,29 @@ function renderizarCarrito() {
   const total = carrito.reduce((sum, i) => sum + (i.precio || 0) * (i.cantidad || 0), 0);
   totalSpan.textContent = `$U ${total.toLocaleString('es-UY')}`;
   
-  // Eventos del carrito
+  // Disminuir cantidad
   listaCarrito.querySelectorAll('.disminuir-cantidad').forEach(btn => {
     btn.onclick = async () => {
       const id = parseInt(btn.dataset.id);
       const item = carrito.find(i => i.id === id);
       if (item && item.cantidad > 1) {
-        await descontarStock(id, -1);
-        const prod = productos.find(p => p.id === id);
-        if (prod) prod.stock++;
-        item.cantidad--;
+        if (item.reservaKey) {
+          // Actualizar reserva: devolver 1 unidad y reducir cantidad
+          await liberarReserva(item.reservaKey, id, 1);
+          item.cantidad--;
+          // Actualizar reserva con nueva cantidad
+          const key = getDbKeyFromId(id);
+          await db.ref(`reservas/${item.reservaKey}`).update({
+            cantidad: item.cantidad,
+            expiraEn: Date.now() + RESERVA_TTL_MS
+          });
+          programarExpiracionReserva(item.reservaKey, { id, nombre: item.nombre }, 0);
+        } else {
+          // Fallback
+          const key = getDbKeyFromId(id);
+          await db.ref(`productos/${key}/stock`).transaction(stock => (stock || 0) + 1);
+          item.cantidad--;
+        }
         guardarCarrito();
         renderizarCarrito();
         renderizarProductos();
@@ -715,15 +748,44 @@ function renderizarCarrito() {
     };
   });
   
+  // Aumentar cantidad
   listaCarrito.querySelectorAll('.aumentar-cantidad').forEach(btn => {
     btn.onclick = async () => {
       const id = parseInt(btn.dataset.id);
       const item = carrito.find(i => i.id === id);
       const prod = productos.find(p => p.id === id);
       if (item && prod && prod.stock > 0) {
-        await descontarStock(id, 1);
-        prod.stock--;
-        item.cantidad++;
+        if (item.reservaKey) {
+          // Actualizar reserva: reservar 1 unidad más
+          const key = getDbKeyFromId(id);
+          const { committed } = await db.ref(`productos/${key}/stock`).transaction(stock => {
+            if (stock < 1) return;
+            return stock - 1;
+          });
+          if (committed) {
+            item.cantidad++;
+            prod.stock--;
+            await db.ref(`reservas/${item.reservaKey}`).update({
+              cantidad: item.cantidad,
+              expiraEn: Date.now() + RESERVA_TTL_MS
+            });
+            programarExpiracionReserva(item.reservaKey, { id, nombre: item.nombre }, 0);
+          } else {
+            mostrarNotificacion('No hay más stock disponible', 'error');
+          }
+        } else {
+          const key = getDbKeyFromId(id);
+          const { committed } = await db.ref(`productos/${key}/stock`).transaction(stock => {
+            if (stock < 1) return;
+            return stock - 1;
+          });
+          if (committed) {
+            item.cantidad++;
+            prod.stock--;
+          } else {
+            mostrarNotificacion('No hay más stock disponible', 'error');
+          }
+        }
         guardarCarrito();
         renderizarCarrito();
         renderizarProductos();
@@ -733,18 +795,26 @@ function renderizarCarrito() {
     };
   });
   
+  // Eliminar item individual
   listaCarrito.querySelectorAll('.eliminar-item').forEach(btn => {
     btn.onclick = async () => {
       const id = parseInt(btn.dataset.id);
       const item = carrito.find(i => i.id === id);
       if (!item) return;
-      
+
       if (item.reservaKey) {
-        clearTimeout(timersExpiracion[item.reservaKey]);
-        delete timersExpiracion[item.reservaKey];
+        if (timersExpiracion[item.reservaKey]) {
+          clearTimeout(timersExpiracion[item.reservaKey]);
+          delete timersExpiracion[item.reservaKey];
+        }
         await liberarReserva(item.reservaKey, id, item.cantidad);
+      } else {
+        const key = getDbKeyFromId(id);
+        if (HAS_FIREBASE_SDK) {
+          await db.ref(`productos/${key}/stock`).transaction(stock => (stock || 0) + item.cantidad);
+        }
       }
-      
+
       carrito = carrito.filter(i => i.id !== id);
       guardarCarrito();
       renderizarCarrito();
@@ -981,8 +1051,10 @@ function renderCheckout() {
         // Eliminar reservas de Firebase (ya se compraron)
         const promesas = carrito.map(item => {
           if (item.reservaKey && HAS_FIREBASE_SDK) {
-            clearTimeout(timersExpiracion[item.reservaKey]);
-            delete timersExpiracion[item.reservaKey];
+            if (timersExpiracion[item.reservaKey]) {
+              clearTimeout(timersExpiracion[item.reservaKey]);
+              delete timersExpiracion[item.reservaKey];
+            }
             return db.ref(`reservas/${item.reservaKey}`).remove();
           }
           return Promise.resolve();
@@ -1238,19 +1310,9 @@ function inicializarEventos() {
   document.querySelector('.carrito-overlay')?.addEventListener('click', toggleCarrito);
   document.querySelector('.cerrar-carrito')?.addEventListener('click', toggleCarrito);
   
+  // Vaciar carrito - CORREGIDO
   document.querySelector('.boton-vaciar-carrito')?.addEventListener('click', async () => {
-    for (const item of carrito) {
-      if (item.reservaKey) {
-        clearTimeout(timersExpiracion[item.reservaKey]);
-        delete timersExpiracion[item.reservaKey];
-        await liberarReserva(item.reservaKey, item.id, item.cantidad);
-      }
-    }
-    carrito = [];
-    guardarCarrito();
-    actualizarUI();
-    if (document.querySelector('.carrito-panel')?.classList.contains('open')) toggleCarrito();
-    mostrarNotificacion('Bolsa vaciada', 'info');
+    await vaciarCarrito();
   });
   
   document.querySelector('.boton-finalizar-compra')?.addEventListener('click', () => {
@@ -1348,6 +1410,7 @@ function inicializarEventos() {
 window.agregarAlCarrito = agregarAlCarrito;
 window.cerrarCheckout = cerrarCheckout;
 window.abrirCheckout = abrirCheckout;
+window.vaciarCarrito = vaciarCarrito;
 
 // ===============================
 // INICIAR TODO
