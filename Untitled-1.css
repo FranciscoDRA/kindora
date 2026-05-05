@@ -1344,3 +1344,75 @@ footer {
     font-size: 20px;
   }
 }
+
+
+/* ── HERO AJUSTADO ── */
+.hero {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 0.85fr 1.15fr; /* más espacio al carrusel */
+  align-items: center;
+  padding-top: 68px;
+  gap: 0; /* sin gap, que respiren solos con su padding */
+  position: relative;
+  overflow: hidden;
+}
+
+.hero-left {
+  padding: 60px 0 60px 48px;
+  max-width: 500px;
+  animation: fadeUp 1s ease both;
+}
+
+.hero-right {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 24px 60px 0;
+  animation: fadeUp 1s ease 0.18s both;
+}
+
+
+/* ── PRODUCTO CARD — FOTO MÁS GRANDE ── */
+.producto-img {
+  width: 100%;
+  aspect-ratio: 3/4;      /* antes era 4/3, ahora más vertical */
+  object-fit: cover;
+  display: block;
+  background: var(--cream-dark);
+  transition: transform 0.5s ease;
+}
+
+.producto-card:hover .producto-img { 
+  transform: scale(1.03); /* más sutil */
+}
+
+/* Que la info debajo sea más compacta para dar más espacio a la foto */
+.producto-card > div:not(.card-acciones) { 
+  padding: 14px 20px; 
+  flex: 1; 
+}
+
+.producto-nombre { 
+  font-size: 15px; 
+  margin-bottom: 4px; 
+}
+
+.producto-precio { 
+  font-size: 18px; 
+  margin-bottom: 2px; 
+}
+
+.producto-stock { 
+  font-size: 11px; 
+  margin-bottom: 0; 
+}
+
+.card-acciones {
+  padding: 12px 20px 18px;
+  border-top: 0.5px solid rgba(212, 163, 115, 0.2);
+  padding-top: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
