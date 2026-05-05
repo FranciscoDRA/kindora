@@ -11,10 +11,11 @@ const CSV_URL = window.SHEET_CSV_URL;
 const PLACEHOLDER_IMAGE = window.PLACEHOLDER_IMAGE;
 
 // ===============================
-// CONFIGURACIÓN EMAILJS
+// CONFIGURACIÓN EMAILJS (CORREGIDO)
 // ===============================
 const EMAILJS_PUBLIC_KEY = 'yYJ_1sm_T24de7v3O';
 const EMAILJS_SERVICE_ID = 'service_kindora';
+
 const TEMPLATE_CONTACTO = 'template_ddt6i41';   
 const TEMPLATE_COMPRA = 'template_an2edlc';      
 
@@ -24,7 +25,6 @@ const TEMPLATE_COMPRA = 'template_an2edlc';
 let productos = [];
 let carrito = [];
 let paginaActual = 1;
-let datosClienteTemp = {}; // Para almacenar datos del cliente temporalmente
 let filtrosActuales = {
   precioMin: null,
   precioMax: null,
@@ -78,9 +78,9 @@ function cargarCarrito() {
 
 function actualizarContadorCarrito() {
   const total = carrito.reduce((sum, item) => sum + item.cantidad, 0);
-  document.querySelectorAll('#contador-carrito, .cart-count, #contador-carrito-nav').forEach(el => {
-    if (el) el.textContent = total;
-    if (el) el.classList.toggle('visible', total > 0);
+  document.querySelectorAll('#contador-carrito, .cart-count').forEach(el => {
+    el.textContent = total;
+    el.classList.toggle('visible', total > 0);
   });
 }
 
@@ -97,7 +97,7 @@ function actualizarCategorias() {
 }
 
 // ===============================
-// CARGA DESDE FIREBASE
+// CARGA DESDE GOOGLE SHEETS
 // ===============================
 const FIREBASE_URL = 'https://kindora-47c88-default-rtdb.firebaseio.com/';
 
@@ -373,7 +373,7 @@ function renderizarCarrito() {
 }
 
 // ===============================
-// EMAILJS FUNCIONES
+// EMAILJS FUNCIONES (NUEVAS)
 // ===============================
 async function enviarCorreoContacto(formData) {
   try {
@@ -391,25 +391,24 @@ async function enviarCorreoContacto(formData) {
 
 async function enviarCorreoCompra(datosCompra) {
   try {
+    // Convertir productos a string plano
+    const productosStr = datosCompra.productos
+      .map(p => `- ${p.nombre} x${p.cantidad} = $U ${(p.precio * p.cantidad).toLocaleString('es-UY')}`)
+      .join('\n');
+
     const templateParams = {
-      order_id: datosCompra.orderId,
-      order_date: new Date().toLocaleString('es-UY'),
-      total_amount: datosCompra.total,
-      client_name: datosCompra.cliente.nombre,
-      client_email: datosCompra.cliente.email,
-      client_phone: datosCompra.cliente.telefono,
-      products: datosCompra.productos.map(p => ({
-        name: p.nombre,
-        quantity: p.cantidad,
-        subtotal: (p.precio * p.cantidad).toLocaleString('es-UY')
-      }))
+      order_id:      datosCompra.orderId,
+      order_date:    new Date().toLocaleString('es-UY'),
+      total_amount:  datosCompra.total,
+      name:          datosCompra.cliente.nombre,   // ← este faltaba (From Name en el template)
+      client_name:   datosCompra.cliente.nombre,
+      client_email:  datosCompra.cliente.email,
+      client_phone:  datosCompra.cliente.telefono,
+      client_address: datosCompra.cliente.direccion || 'No especificada',
+      products:      productosStr,                 // ← string, no array
     };
-    
-    await emailjs.send(
-      EMAILJS_SERVICE_ID,
-      TEMPLATE_COMPRA,
-      templateParams
-    );
+
+    await emailjs.send(EMAILJS_SERVICE_ID, TEMPLATE_COMPRA, templateParams);
     return { success: true };
   } catch (error) {
     console.error('Error EmailJS compra:', error);
@@ -418,113 +417,8 @@ async function enviarCorreoCompra(datosCompra) {
 }
 
 // ===============================
-// MODAL DE TRANSFERENCIA MEJORADO
+// MODAL DE TRANSFERENCIA (MODIFICADO)
 // ===============================
-
-// Función para agregar un formulario de datos dentro del modal existente
-function mejorarModalTransferencia() {
-  const modal = document.getElementById('aviso-pre-compra-modal');
-  if (!modal) return;
-  
-  const modalCard = modal.querySelector('.modal-transferencia-card');
-  if (!modalCard) return;
-  
-  // Verificar si ya mejoramos este modal
-  if (modalCard.querySelector('.formulario-cliente')) return;
-  
-  // Crear el formulario de datos del cliente
-  const formularioHTML = `
-    <div class="formulario-cliente" style="margin: 20px 0; padding: 15px; background: #f9f6f0; border-radius: 12px; border: 1px solid #D4A37320;">
-      <h4 style="margin: 0 0 12px 0; font-size: 16px; color: #4A3728;">📋 Tus datos (para contactarte)</h4>
-      
-      <div style="margin-bottom: 12px;">
-        <label style="display: block; margin-bottom: 5px; font-size: 13px; font-weight: 500;">Nombre completo *</label>
-        <input type="text" id="cliente-nombre" placeholder="Ej: Ana García" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px;">
-      </div>
-      
-      <div style="margin-bottom: 12px;">
-        <label style="display: block; margin-bottom: 5px; font-size: 13px; font-weight: 500;">Email *</label>
-        <input type="email" id="cliente-email" placeholder="tu@email.com" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px;">
-      </div>
-      
-      <div style="margin-bottom: 12px;">
-        <label style="display: block; margin-bottom: 5px; font-size: 13px; font-weight: 500;">Teléfono / WhatsApp *</label>
-        <input type="tel" id="cliente-telefono" placeholder="099 123 456" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px;">
-      </div>
-      
-      <div style="margin-bottom: 5px;">
-        <label style="display: block; margin-bottom: 5px; font-size: 13px; font-weight: 500;">Dirección (opcional)</label>
-        <input type="text" id="cliente-direccion" placeholder="Calle, número, ciudad" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px;">
-      </div>
-      
-      <p style="font-size: 11px; color: #888; margin-top: 10px;">* Campos obligatorios para procesar tu pedido</p>
-    </div>
-  `;
-  
-  // Insertar el formulario después de los datos bancarios
-  const cuentaDiv = modalCard.querySelector('.mt-cuenta');
-  if (cuentaDiv) {
-    cuentaDiv.insertAdjacentHTML('afterend', formularioHTML);
-  }
-  
-  // Modificar el botón "Listo, ya transferí" para validar datos
-  const btnEntendido = document.getElementById('btn-entendido-aviso');
-  if (btnEntendido) {
-    // Guardar referencia original
-    const nuevoBtn = btnEntendido.cloneNode(true);
-    btnEntendido.parentNode.replaceChild(nuevoBtn, btnEntendido);
-    nuevoBtn.id = 'btn-entendido-aviso';
-    
-    nuevoBtn.addEventListener('click', async () => {
-      const nombre = document.getElementById('cliente-nombre')?.value.trim();
-      const email = document.getElementById('cliente-email')?.value.trim();
-      const telefono = document.getElementById('cliente-telefono')?.value.trim();
-      const direccion = document.getElementById('cliente-direccion')?.value.trim() || 'No especificada';
-      
-      // Validar campos obligatorios
-      if (!nombre) {
-        mostrarNotificacion('Por favor, ingresá tu nombre completo', 'error');
-        document.getElementById('cliente-nombre')?.focus();
-        return;
-      }
-      
-      if (!email || !email.includes('@')) {
-        mostrarNotificacion('Por favor, ingresá un email válido', 'error');
-        document.getElementById('cliente-email')?.focus();
-        return;
-      }
-      
-      if (!telefono) {
-        mostrarNotificacion('Por favor, ingresá tu número de teléfono', 'error');
-        document.getElementById('cliente-telefono')?.focus();
-        return;
-      }
-      
-      // Guardar datos del cliente
-      datosClienteTemp = {
-        nombre: nombre,
-        email: email,
-        telefono: telefono,
-        direccion: direccion
-      };
-      
-      // Actualizar el link de WhatsApp con los datos del cliente
-      const wspLink = document.getElementById('wsp-link');
-      if (wspLink) {
-        const total = carrito.reduce((sum, i) => sum + i.precio * i.cantidad, 0);
-        const totalStr = `$U ${total.toLocaleString('es-UY')}`;
-        const pedidoTexto = carrito.map(i => `• ${i.nombre} x${i.cantidad} - $U ${(i.precio * i.cantidad).toLocaleString('es-UY')}`).join('%0A');
-        const wspMsg = `Hola Kindora! 👋 Quiero enviar mi comprobante de pago.%0A%0A📋 DATOS DEL CLIENTE:%0ANombre: ${nombre}%0AEmail: ${email}%0ATeléfono: ${telefono}%0ADirección: ${direccion}%0A%0A🛒 PEDIDO:%0A${pedidoTexto}%0A%0A💰 Total: ${totalStr}%0A%0AAdjunto el comprobante de transferencia.`;
-        wspLink.href = `https://wa.me/${WHATSAPP_NUMERO}?text=${wspMsg}`;
-      }
-      
-      // Enviar notificación por email
-      await confirmarPedidoConEmail(datosClienteTemp);
-      cerrarModalTransferencia();
-    });
-  }
-}
-
 function abrirModalTransferencia() {
   const modal = getElement('aviso-pre-compra-modal');
   if (!modal) return;
@@ -532,10 +426,10 @@ function abrirModalTransferencia() {
   const totalStr = `$U ${total.toLocaleString('es-UY')}`;
   const montoEl = document.getElementById('monto-transferencia');
   if (montoEl) montoEl.textContent = totalStr;
-  
-  // Mejorar el modal con el formulario (solo la primera vez)
-  mejorarModalTransferencia();
-  
+  const items = carrito.map(i => `• ${i.nombre} x${i.cantidad} = $U ${(i.precio * i.cantidad).toLocaleString('es-UY')}`).join('%0A');
+  const wspMsg = encodeURIComponent(`Hola Kindora! 👋 Quiero enviar mi comprobante de pago.\n\nPedido:\n${carrito.map(i => `• ${i.nombre} x${i.cantidad}`).join('\n')}\n\nTotal: ${totalStr}\n\nAdjunto el comprobante de transferencia.`);
+  const wspLink = document.getElementById('wsp-link');
+  if (wspLink) wspLink.href = `https://wa.me/${WHATSAPP_NUMERO}?text=${wspMsg}`;
   modal.style.display = 'flex';
   document.body.classList.add('no-scroll');
 }
@@ -547,6 +441,7 @@ function cerrarModalTransferencia() {
   document.body.classList.remove('no-scroll');
 }
 
+// Función para confirmar pedido y enviar email
 async function confirmarPedidoConEmail(datosCliente) {
   const totalNumerico = carrito.reduce((sum, i) => sum + i.precio * i.cantidad, 0);
   const orderId = 'KIN-' + Date.now().toString().slice(-8);
@@ -558,14 +453,15 @@ async function confirmarPedidoConEmail(datosCliente) {
     productos: [...carrito]
   };
   
+  // Mostrar loading
   mostrarNotificacion('Procesando tu pedido...', 'info');
   
   const result = await enviarCorreoCompra(datosCompra);
   
   if (result.success) {
-    mostrarNotificacion('✅ Pedido confirmado! Te llegará un email con los detalles.', 'exito');
+    mostrarNotificacion('✅ Pedido confirmado. Te enviaremos un email con los detalles.', 'exito');
   } else {
-    mostrarNotificacion('⚠️ Pedido registrado. Te contactaremos por WhatsApp.', 'info');
+    mostrarNotificacion('⚠️ Pedido registrado. Nos contactaremos contigo pronto.', 'info');
   }
   
   // Vaciar carrito
@@ -647,9 +543,24 @@ function initShowcaseCarousel() {
   const PLACEHOLDER = window.PLACEHOLDER_IMAGE || 'https://placehold.co/480x640/EDE4D6/4A3728?text=Kindora';
   const INTERVAL = 4800;
   const DEMO_ITEMS = [
-    { nombre: 'Funda Caoba Premium', categoria: 'Fundas', precio: 1890, img: 'img/WhatsApp%20Image%202026-04-28%20at%2010.45.47.jpeg' },
-    { nombre: 'Funda Caoba Premium', categoria: 'Fundas', precio: 1890, img: 'img/WhatsApp Image 2026-04-28 at 10.46.08.jpeg' },
-    { nombre: 'Funda Caoba Premium', categoria: 'Fundas', precio: 1890, img: 'img/WhatsApp Image 2026-04-28 at 10.46.16.jpeg' },
+    { 
+      nombre: 'Funda Caoba Premium', 
+      categoria: 'Fundas', 
+      precio: 1890, 
+      img: 'img/WhatsApp%20Image%202026-04-28%20at%2010.45.47.jpeg' 
+    },
+    { 
+      nombre: 'Funda Caoba Premium', 
+      categoria: 'Fundas', 
+      precio: 1890, 
+      img: 'img/WhatsApp Image 2026-04-28 at 10.46.08.jpeg' 
+    },
+    { 
+      nombre: 'Funda Caoba Premium', 
+      categoria: 'Fundas', 
+      precio: 1890, 
+      img: 'img/WhatsApp Image 2026-04-28 at 10.46.16.jpeg' 
+    },
   ];
   const raw = (typeof productos !== 'undefined' && productos.length > 0) ? productos.slice(0, 8) : DEMO_ITEMS;
   const items = raw.map(p => ({
@@ -777,7 +688,66 @@ function initShowcaseCarousel() {
 }
 
 // ===============================
-// INICIALIZACIÓN
+// KINDLE INTERACTIVO
+// ===============================
+(function() {
+  const pages = [
+    { chapter: "CAPÍTULO PRIMERO", title: "El secreto del bosque", page: "— 12 —",
+      lines: ["La mañana llegó envuelta en un silencio","extraño, como si el bosque mismo hubiera","contenido la respiración durante la noche.","Mara abrió los ojos antes de que el sol","tocara el horizonte, impulsada por una","inquietud que no sabía nombrar. Desde su","ventana, los robles centenarios se erguían","inmóviles, sus ramas formando una bóveda.","","     —¿Lo escuchaste anoche? —susurró su","hermano Tomás desde el umbral, con los ojos","aún pesados de sueño pero la voz cargada.","","     Mara asintió sin palabras. El sonido","—aquella vibración grave que recorrió el","suelo como un pulso subterráneo— la había","despertado a las tres de la madrugada. No","era el viento. Era algo más antiguo."] },
+    { chapter: "CAPÍTULO SEGUNDO", title: "El camino de raíces", page: "— 28 —",
+      lines: ["Al amanecer, los dos hermanos cruzaron","el umbral sin decirse nada. Las palabras","sobraban cuando el bosque llamaba así.","","     El sendero era apenas una sugerencia","entre la hojarasca. Las raíces emergían","del suelo como dedos, como advertencias.","Mara las esquivaba sin mirar; las conocía","de memoria, las había recorrido de niña.","","     Pero el bosque no era el mismo.","Los pájaros callaban. La luz del alba","se filtraba distinta, más dorada, más","espesa. Como si el aire mismo tuviera","memoria y eligiera recordar."] },
+    { chapter: "CAPÍTULO TERCERO", title: "El círculo de robles", page: "— 41 —",
+      lines: ["Lo encontraron al mediodía: el claro.","Siete robles dispuestos en círculo perfecto,","sus troncos tan viejos que parecían piedra.","","     En el centro, la tierra era diferente.","Más oscura. Más quieta. Sin insectos,","sin musgo, sin la vida pequeña que","cubría todo lo demás.","","     —El mapa decía aquí —murmuró Tomás.","","     Mara no respondió. Estaba mirando","el suelo, donde algo pulsaba, lento","y profundo, como un corazón dormido","esperando el momento exacto de despertar."] }
+  ];
+  const device = document.querySelector('.device');
+  if (!device) return;
+  const scene = document.querySelector('.ereader-scene');
+  if (scene && !document.querySelector('.kindle-progress')) {
+    const progressWrap = document.createElement('div');
+    progressWrap.className = 'kindle-progress';
+    const progressFill = document.createElement('div');
+    progressFill.className = 'kindle-progress-fill';
+    progressWrap.appendChild(progressFill);
+    scene.appendChild(progressWrap);
+    const style = document.createElement('style');
+    style.textContent = `.kindle-progress { position: absolute; bottom: 30px; left: 30px; right: 30px; height: 1.5px; background: rgba(212,163,115,0.25); z-index: 5; } .kindle-progress-fill { height: 100%; width: 0%; background: var(--sepia); transition: width 0.6s ease; }`;
+    document.head.appendChild(style);
+  }
+  const progressFill = document.querySelector('.kindle-progress-fill');
+  const textGroup = device.querySelector('g[font-family]');
+  const chapterEl = device.querySelector('text[letter-spacing="2.5"]');
+  const titleEl = device.querySelector('text[font-size="13"]');
+  const pageNumEl = device.querySelector('text[letter-spacing="1"]');
+  if (!textGroup) return;
+  const textEls = Array.from(textGroup.querySelectorAll('text'));
+  let current = 0, paused = false, timer;
+  function setPage(idx, animate) {
+    const p = pages[idx];
+    if (progressFill) progressFill.style.width = ((idx + 1) / pages.length * 100) + '%';
+    const doUpdate = () => {
+      if (chapterEl) chapterEl.textContent = p.chapter;
+      if (titleEl) titleEl.textContent = p.title;
+      if (pageNumEl) pageNumEl.textContent = p.page;
+      textEls.forEach((el, i) => { el.textContent = i < p.lines.length ? p.lines[i] : ''; });
+    };
+    if (animate) {
+      device.style.opacity = '0.85';
+      device.style.transition = 'opacity 0.08s';
+      setTimeout(() => { doUpdate(); device.style.opacity = '1'; }, 90);
+    } else { doUpdate(); }
+  }
+  function nextPage() { if (!paused) { current = (current + 1) % pages.length; setPage(current, true); } }
+  function startTimer() { clearInterval(timer); timer = setInterval(nextPage, 5000); }
+  if (scene) {
+    scene.addEventListener('mouseenter', () => { paused = true; });
+    scene.addEventListener('mouseleave', () => { paused = false; startTimer(); });
+  }
+  setPage(0, false);
+  startTimer();
+})();
+
+// ===============================
+// INICIALIZACIÓN (CORREGIDA CON EMAILJS)
 // ===============================
 function init() {
   cargarCarrito();
@@ -788,23 +758,27 @@ function init() {
   // Inicializar EmailJS
   if (window.emailjs) {
     emailjs.init(EMAILJS_PUBLIC_KEY);
-    console.log('✅ EmailJS inicializado');
+    console.log('✅ EmailJS inicializado con clave:', EMAILJS_PUBLIC_KEY);
   } else {
-    console.warn('⚠️ EmailJS no cargado');
+    console.warn('⚠️ EmailJS no cargado. Revisa que el script esté incluido.');
   }
   
-  // Formulario de contacto
+  // ===== FORMULARIO DE CONTACTO =====
   const formContacto = document.getElementById('form-contacto');
   if (formContacto) {
     formContacto.addEventListener('submit', async function(event) {
       event.preventDefault();
+      
       const btnEnviar = document.getElementById('btn-enviar');
       const successMessage = document.getElementById('success-message');
+      
       if (btnEnviar) {
         btnEnviar.disabled = true;
         btnEnviar.textContent = 'Enviando...';
       }
+      
       const result = await enviarCorreoContacto(formContacto);
+      
       if (result.success) {
         formContacto.reset();
         if (successMessage) {
@@ -813,8 +787,10 @@ function init() {
         }
         mostrarNotificacion('¡Mensaje enviado con éxito! Te responderemos pronto 📖', 'exito');
       } else {
+        console.error('Error detallado:', result.error);
         mostrarNotificacion('Error al enviar. Por favor intentá de nuevo.', 'error');
       }
+      
       if (btnEnviar) {
         btnEnviar.disabled = false;
         btnEnviar.textContent = 'Enviar mensaje';
@@ -824,7 +800,7 @@ function init() {
 }
 
 // ===============================
-// EVENTOS
+// EVENTOS (MODIFICADO PARA EMAILJS)
 // ===============================
 function inicializarEventos() {
   document.getElementById('carrito-btn-main')?.addEventListener('click', toggleCarrito);
@@ -838,6 +814,7 @@ function inicializarEventos() {
     mostrarNotificacion('Bolsa vaciada', 'info');
   });
   
+  // Botón finalizar compra MODIFICADO
   document.querySelector('.boton-finalizar-compra')?.addEventListener('click', () => {
     if (carrito.length === 0) {
       mostrarNotificacion('Tu bolsa está vacía', 'error');
@@ -845,6 +822,25 @@ function inicializarEventos() {
     }
     if (document.querySelector('.carrito-panel')?.classList.contains('open')) toggleCarrito();
     setTimeout(abrirModalTransferencia, 320);
+  });
+  
+  // Botón ENTENDIDO del modal - MODIFICADO para enviar email
+  document.getElementById('btn-entendido-aviso')?.addEventListener('click', async () => {
+    // Pedir datos del cliente
+  const cliente = {
+  nombre:    prompt('Ingresa tu nombre completo:') || 'Cliente Kindora',
+  email:     prompt('Ingresa tu email:') || '',
+  telefono:  prompt('Ingresa tu teléfono:') || 'No especificado',
+  direccion: prompt('Ingresa tu dirección de contacto:') || 'No especificada',
+};
+    
+    if (!cliente.email) {
+      mostrarNotificacion('El email es necesario para confirmar tu pedido', 'error');
+      return;
+    }
+    
+    await confirmarPedidoConEmail(cliente);
+    cerrarModalTransferencia();
   });
   
   document.getElementById('btn-cancelar-aviso')?.addEventListener('click', cerrarModalTransferencia);
