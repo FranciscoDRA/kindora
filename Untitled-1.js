@@ -433,20 +433,17 @@ async function confirmarPedidoConEmail(datosCliente) {
     productos: [...carrito]
   };
   
-  mostrarNotificacion('Procesando tu pedido...', 'info');
+  mostrarNotificacion('Enviando confirmación...', 'info');
   
   const result = await enviarCorreoCompra(datosCompra);
   
   if (result.success) {
-    mostrarNotificacion('✅ Pedido confirmado. Te enviaremos un email con los detalles.', 'exito');
+    mostrarNotificacion('✅ Pedido confirmado. Te llegará un email.', 'exito');
   } else {
-    mostrarNotificacion('⚠️ Pedido registrado. Nos contactaremos contigo pronto.', 'info');
+    mostrarNotificacion('⚠️ Pedido registrado. Te contactaremos.', 'info');
   }
   
-  // Vaciar carrito
-  carrito = [];
-  guardarCarrito();
-  actualizarUI();
+  // ⚠️ NO vaciar carrito aquí - se vacía en el paso 2
 }
 
 // ===============================
