@@ -427,23 +427,35 @@ async function enviarCorreoCompra(datosCompra) {
 async function confirmarPedidoConEmail(datosCliente) {
   const totalNumerico = carrito.reduce((sum, i) => sum + i.precio * i.cantidad, 0);
   const orderId = 'KIN-' + Date.now().toString().slice(-8);
-  
+
   const datosCompra = {
-    orderId: orderId,
+    orderId,
     total: totalNumerico.toLocaleString('es-UY'),
     cliente: {
-      nombre: datosCliente.nombre,
-      email: datosCliente.email,
-      telefono: datosCliente.telefono || '—',
+      nombre:    datosCliente.nombre,
+      email:     datosCliente.email,
+      telefono:  datosCliente.telefono || '—',
       direccion: datosCliente.direccion || '—'
     },
-    productos: [...carrito]
+    productos: [...carrito],
+    fecha: new Date().toISOString(),
+    estado: 'pendiente_confirmacion'
   };
-  
+
+  // ✅ Guardar pedido en Firebase primero (respaldo ante fallo de email)
+  try {
+    await fetch(FIREBASE_URL + 'pedidos/.json', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(datosCompra)
+    });
+  } catch (e) {
+    console.warn('No se pudo guardar el pedido en Firebase:', e);
+  }
+
   mostrarNotificacion('Enviando confirmación...', 'info');
-  
   const result = await enviarCorreoCompra(datosCompra);
-  
+
   if (result.success) {
     mostrarNotificacion('✅ Pedido confirmado. Te llegará un email.', 'exito');
   } else {
@@ -690,30 +702,40 @@ function renderCheckout(modal) {
       const newBtn = nextBtn.cloneNode(true);
       nextBtn.parentNode.replaceChild(newBtn, nextBtn);
       
-      newBtn.addEventListener('click', async () => {
-        const textoOriginal = newBtn.textContent;
-        newBtn.textContent = '🔍 Verificando stock...';
-        newBtn.disabled = true;
+    newBtn.addEventListener('click', async () => {
+  const textoOriginal = '✓ Ya realicé la transferencia'; // ✅ definido antes de usarlo
+  newBtn.textContent = '🔍 Verificando stock...';
+  newBtn.disabled = true;
+
+   const stockValido = await verificarStockEnTiempoReal();
+  if (!stockValido) {
+    newBtn.textContent = textoOriginal;
+    newBtn.disabled = false;
+    cerrarCheckout();
+    return;
+  }
+
+  newBtn.textContent = '📦 Registrando pedido...';
+
+  const stockDescontado = await descontarStockEnFirebase();
+  if (!stockDescontado) {
+    mostrarNotificacion('Error al procesar el pedido. Intentá de nuevo.', 'error');
+    newBtn.textContent = textoOriginal;
+    newBtn.disabled = false;
+    return;
+  }
+
+  newBtn.textContent = '📧 Confirmando pedido...';
+  await confirmarPedidoConEmail(checkoutDatosCliente);
+
+  carrito = [];
+  guardarCarrito();
+  actualizarUI();
+  checkoutStep = 3;
+  renderCheckout(modal);
+});
         
-        const stockValido = await verificarStockEnTiempoReal();
-        
-        if (!stockValido) {
-          newBtn.textContent = textoOriginal;
-          newBtn.disabled = false;
-          cerrarCheckout();
-          return;
-        }
-        
-        newBtn.textContent = '📧 Confirmando pedido...';
-        await confirmarPedidoConEmail(checkoutDatosCliente);
-        
-        carrito = [];
-        guardarCarrito();
-        actualizarUI();
-        
-        checkoutStep = 3;
-        renderCheckout(modal);
-      });
+     
     }
   }
 }
@@ -1077,6 +1099,37 @@ function inicializarEventos() {
   }
 }
 
+async function descontarStockEnFirebase() {
+  try {
+    // Leer stock actual
+    const resp = await fetch(FIREBASE_URL + 'productos/.json');
+    const data = await resp.json();
+    const productosActuales = Object.entries(data); // [key, producto]
+
+    const updates = {};
+
+    for (const item of carrito) {
+      const entrada = productosActuales.find(([, p]) => p.id == item.id);
+      if (!entrada) continue;
+      const [key, prod] = entrada;
+      const nuevoStock = Math.max(0, parseInt(prod.stock) - item.cantidad);
+      updates[`productos/${key}/stock`] = nuevoStock;
+    }
+
+    // Escribir todos los cambios en una sola llamada
+    const patch = await fetch(FIREBASE_URL + '.json?x-http-method-override=PATCH', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updates)
+    });
+
+    if (!patch.ok) throw new Error('No se pudo actualizar el stock');
+    return true;
+  } catch (error) {
+    console.error('Error descontando stock:', error);
+    return false;
+  }
+}
 // ===============================
 // INICIAR TODO
 // ===============================
