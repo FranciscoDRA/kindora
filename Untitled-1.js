@@ -391,23 +391,21 @@ async function enviarCorreoContacto(formData) {
 
 async function enviarCorreoCompra(datosCompra) {
   try {
-    // Convertir productos a string plano
-    const productosStr = datosCompra.productos
-      .map(p => `- ${p.nombre} x${p.cantidad} = $U ${(p.precio * p.cantidad).toLocaleString('es-UY')}`)
-      .join('\n');
-
     const templateParams = {
-      order_id:      datosCompra.orderId,
-      order_date:    new Date().toLocaleString('es-UY'),
-      total_amount:  datosCompra.total,
-      name:          datosCompra.cliente.nombre,   // ← este faltaba (From Name en el template)
-      client_name:   datosCompra.cliente.nombre,
-      client_email:  datosCompra.cliente.email,
-      client_phone:  datosCompra.cliente.telefono,
-      client_address: datosCompra.cliente.direccion || 'No especificada',
-      products:      productosStr,                 // ← string, no array
+      order_id:       datosCompra.orderId,
+      order_date:     new Date().toLocaleString('es-UY'),
+      total_amount:   datosCompra.total,
+      name:           datosCompra.cliente.nombre,
+      client_name:    datosCompra.cliente.nombre,
+      client_email:   datosCompra.cliente.email,
+      client_phone:   datosCompra.cliente.telefono  || '—',
+      client_address: datosCompra.cliente.direccion || '—',
+      products:       datosCompra.productos.map(p => ({
+        name:     p.nombre,
+        quantity: p.cantidad,
+        subtotal: (p.precio * p.cantidad).toLocaleString('es-UY')
+      })),
     };
-
     await emailjs.send(EMAILJS_SERVICE_ID, TEMPLATE_COMPRA, templateParams);
     return { success: true };
   } catch (error) {
@@ -825,23 +823,36 @@ function inicializarEventos() {
   });
   
   // Botón ENTENDIDO del modal - MODIFICADO para enviar email
-  document.getElementById('btn-entendido-aviso')?.addEventListener('click', async () => {
-    // Pedir datos del cliente
-  const cliente = {
-  nombre:    prompt('Ingresa tu nombre completo:') || 'Cliente Kindora',
-  email:     prompt('Ingresa tu email:') || '',
-  telefono:  prompt('Ingresa tu teléfono:') || 'No especificado',
-  direccion: prompt('Ingresa tu dirección de contacto:') || 'No especificada',
-};
-    
-    if (!cliente.email) {
-      mostrarNotificacion('El email es necesario para confirmar tu pedido', 'error');
-      return;
-    }
-    
-    await confirmarPedidoConEmail(cliente);
-    cerrarModalTransferencia();
-  });
+  document.getElementById('btn-entendido-aviso')?.addEventListener('click', () => {
+  cerrarModalTransferencia();
+  setTimeout(() => abrirModalDatosCliente(), 200);
+});
+
+document.getElementById('btn-cancelar-cliente')?.addEventListener('click', cerrarModalDatosCliente);
+
+document.getElementById('btn-confirmar-cliente')?.addEventListener('click', async () => {
+  const nombre    = document.getElementById('cliente-nombre')?.value.trim();
+  const email     = document.getElementById('cliente-email')?.value.trim();
+  const telefono  = document.getElementById('cliente-telefono')?.value.trim();
+  const direccion = document.getElementById('cliente-direccion')?.value.trim();
+  const errorEl   = document.getElementById('cliente-error');
+
+  if (!nombre || !email) {
+    errorEl.style.display = 'block';
+    return;
+  }
+  errorEl.style.display = 'none';
+
+  const btn = document.getElementById('btn-confirmar-cliente');
+  btn.disabled = true;
+  btn.textContent = 'Enviando...';
+
+  await confirmarPedidoConEmail({ nombre, email, telefono, direccion });
+
+  btn.disabled = false;
+  btn.textContent = 'Confirmar pedido →';
+  cerrarModalDatosCliente();
+});
   
   document.getElementById('btn-cancelar-aviso')?.addEventListener('click', cerrarModalTransferencia);
   document.getElementById('aviso-pre-compra-modal')?.addEventListener('click', (e) => { 
@@ -936,3 +947,61 @@ function inicializarEventos() {
 // ===============================
 if (document.readyState !== 'loading') init();
 else document.addEventListener('DOMContentLoaded', init);
+
+// ===============================
+// MODAL DATOS CLIENTE
+// ===============================
+function abrirModalDatosCliente() {
+  let modal = getElement('modal-datos-cliente');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'modal-datos-cliente';
+    modal.style.cssText = 'display:none;position:fixed;inset:0;background:rgba(74,55,40,0.55);z-index:9999;align-items:center;justify-content:center;';
+    modal.innerHTML = `
+      <div style="background:#faf6f0;border-radius:12px;padding:36px 32px;max-width:420px;width:90%;box-shadow:0 8px 40px rgba(74,55,40,0.18);">
+        <h3 style="margin:0 0 6px;font-family:Georgia,serif;color:#3b2a1a;font-size:1.25rem;">Confirmá tu pedido</h3>
+        <p style="margin:0 0 22px;font-size:0.85rem;color:#7a6450;">Completá tus datos para registrar la compra y recibir confirmación.</p>
+        <div style="display:flex;flex-direction:column;gap:12px;">
+          <input id="cliente-nombre" placeholder="Nombre completo *" style="padding:10px 14px;border:1px solid #d4c5b0;border-radius:7px;font-size:0.95rem;background:#fff;color:#3b2a1a;outline:none;">
+          <input id="cliente-email" type="email" placeholder="Email *" style="padding:10px 14px;border:1px solid #d4c5b0;border-radius:7px;font-size:0.95rem;background:#fff;color:#3b2a1a;outline:none;">
+          <input id="cliente-telefono" placeholder="Teléfono (opcional)" style="padding:10px 14px;border:1px solid #d4c5b0;border-radius:7px;font-size:0.95rem;background:#fff;color:#3b2a1a;outline:none;">
+          <input id="cliente-direccion" placeholder="Dirección de entrega (opcional)" style="padding:10px 14px;border:1px solid #d4c5b0;border-radius:7px;font-size:0.95rem;background:#fff;color:#3b2a1a;outline:none;">
+          <p id="cliente-error" style="display:none;color:#c0392b;font-size:0.82rem;margin:0;">* Nombre y email son obligatorios.</p>
+        </div>
+        <div style="display:flex;gap:10px;margin-top:22px;">
+          <button id="btn-cancelar-cliente" style="flex:1;padding:11px;border:1px solid #d4c5b0;background:transparent;border-radius:7px;color:#7a6450;cursor:pointer;font-size:0.9rem;">Cancelar</button>
+          <button id="btn-confirmar-cliente" style="flex:2;padding:11px;background:#3b2a1a;color:#faf6f0;border:none;border-radius:7px;cursor:pointer;font-size:0.95rem;font-weight:600;">Confirmar pedido →</button>
+        </div>
+      </div>`;
+    document.body.appendChild(modal);
+
+    // Reasignar eventos porque el DOM cambió
+    document.getElementById('btn-cancelar-cliente').addEventListener('click', cerrarModalDatosCliente);
+    document.getElementById('btn-confirmar-cliente').addEventListener('click', async () => {
+      const nombre    = document.getElementById('cliente-nombre')?.value.trim();
+      const email     = document.getElementById('cliente-email')?.value.trim();
+      const telefono  = document.getElementById('cliente-telefono')?.value.trim();
+      const direccion = document.getElementById('cliente-direccion')?.value.trim();
+      const errorEl   = document.getElementById('cliente-error');
+      if (!nombre || !email) { errorEl.style.display = 'block'; return; }
+      errorEl.style.display = 'none';
+      const btn = document.getElementById('btn-confirmar-cliente');
+      btn.disabled = true;
+      btn.textContent = 'Enviando...';
+      await confirmarPedidoConEmail({ nombre, email, telefono, direccion });
+      btn.disabled = false;
+      btn.textContent = 'Confirmar pedido →';
+      cerrarModalDatosCliente();
+    });
+    modal.addEventListener('click', (e) => { if (e.target === modal) cerrarModalDatosCliente(); });
+  }
+  modal.style.display = 'flex';
+  document.body.classList.add('no-scroll');
+}
+
+function cerrarModalDatosCliente() {
+  const modal = getElement('modal-datos-cliente');
+  if (!modal) return;
+  modal.style.display = 'none';
+  document.body.classList.remove('no-scroll');
+}
