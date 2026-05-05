@@ -179,7 +179,7 @@ function crearCardProducto(p) {
       <div>
         <p class="producto-nombre">${p.nombre}</p>
         <p class="producto-precio">$U ${p.precio.toLocaleString('es-UY')}</p>
-        <p class="producto-stock">${agot ? '<span class="texto-agotado">Agotado</span>' : `Disponibles: ${disp}`}</p>
+        <p class="producto-stock">${agot ? '<span class="texto-agotado">Agotado</span>' : ''}</p>
       </div>
       <div class="card-acciones">
         <input type="number" value="1" min="1" max="${disp}" class="cantidad-input" id="cantidad-${p.id}" ${agot ? 'disabled' : ''}>
@@ -236,7 +236,6 @@ function mostrarModalProducto(p) {
   const enCarrito = carrito.find(i => i.id === p.id);
   const disp = p.stock - (enCarrito?.cantidad || 0);
   
-  // Generar HTML del carrusel
   let carruselHtml = '';
   if (p.imagenes.length > 0) {
     carruselHtml += `<img src="${p.imagenes[0] || PLACEHOLDER_IMAGE}" class="modal-img-principal" alt="${p.nombre}" loading="lazy" onerror="this.src='${PLACEHOLDER_IMAGE}'">`;
@@ -265,7 +264,6 @@ function mostrarModalProducto(p) {
     </div>
   `;
   
-  // Evento de thumbnails
   if (p.imagenes.length > 1) {
     const mainImg = modalContenido.querySelector('.modal-img-principal');
     modalContenido.querySelectorAll('.modal-thumbnail').forEach((thumb, i) => {
@@ -277,7 +275,6 @@ function mostrarModalProducto(p) {
     });
   }
   
-  // Cerrar modal
   const cerrarBtn = modalContenido.querySelector('.cerrar-modal');
   cerrarBtn?.addEventListener('click', () => {
     modal.style.display = 'none';
@@ -285,7 +282,6 @@ function mostrarModalProducto(p) {
     modalAbierto = false;
   });
   
-  // Agregar al carrito
   const agregarBtn = modalContenido.querySelector('.boton-agregar-modal');
   agregarBtn?.addEventListener('click', () => {
     const cantidad = +modalContenido.querySelector('.cantidad-modal-input').value || 1;
@@ -298,7 +294,6 @@ function mostrarModalProducto(p) {
   modal.style.display = 'flex';
   document.body.classList.add('no-scroll');
   
-  // Cerrar al hacer clic fuera
   modal.addEventListener('click', (e) => {
     if (e.target === modal) {
       modal.style.display = 'none';
@@ -454,8 +449,55 @@ async function confirmarPedidoConEmail(datosCliente) {
   } else {
     mostrarNotificacion('⚠️ Pedido registrado. Te contactaremos.', 'info');
   }
-  
-  // ⚠️ NO vaciar carrito aquí - se vacía en el paso 2
+}
+
+// ===============================
+// VERIFICAR STOCK EN TIEMPO REAL
+// ===============================
+async function verificarStockEnTiempoReal() {
+  try {
+    const resp = await fetch(FIREBASE_URL + 'productos/.json');
+    if (!resp.ok) throw new Error('No se pudo verificar stock');
+    
+    const data = await resp.json();
+    if (!data) throw new Error('No hay datos de stock');
+    
+    const productosActualizados = Object.values(data);
+    
+    let stockOk = true;
+    let mensajeError = '';
+    
+    for (const item of carrito) {
+      const prodActual = productosActualizados.find(p => p.id == item.id);
+      
+      if (!prodActual) {
+        stockOk = false;
+        mensajeError = `❌ "${item.nombre}" ya no está disponible`;
+        break;
+      }
+      
+      const stockDisponible = parseInt(prodActual.stock) || 0;
+      
+      if (stockDisponible < item.cantidad) {
+        stockOk = false;
+        mensajeError = `❌ "${item.nombre}" solo tiene ${stockDisponible} unidad(es) disponible(s)`;
+        break;
+      }
+    }
+    
+    if (!stockOk) {
+      mostrarNotificacion(mensajeError, 'error');
+      await cargarProductosDesdeSheets();
+      return false;
+    }
+    
+    return true;
+    
+  } catch (error) {
+    console.error('Error verificando stock:', error);
+    mostrarNotificacion('⚠️ No se pudo verificar el stock. Intentá nuevamente.', 'error');
+    return false;
+  }
 }
 
 // ===============================
@@ -490,14 +532,12 @@ function cerrarCheckout() {
   document.body.classList.remove('no-scroll');
 }
 
-// Alias para compatibilidad
 function abrirModalTransferencia() { abrirCheckout(); }
 function cerrarModalTransferencia() { cerrarCheckout(); }
 function abrirModalDatosCliente() { abrirCheckout(); }
 function cerrarModalDatosCliente() { cerrarCheckout(); }
 
 function renderCheckout(modal) {
-  // Calcular total CADA VEZ que se renderiza
   const total = carrito.reduce((s, i) => s + i.precio * i.cantidad, 0);
   const totalStr = total.toLocaleString('es-UY');
   const steps = ['Tu pedido', 'Pago', 'Confirmación'];
@@ -620,7 +660,6 @@ function renderCheckout(modal) {
       ${contenido}
     </div>`;
 
-  // Eventos del paso 1 - SOLO guardar datos, NO enviar email
   if (checkoutStep === 1) {
     const nextBtn = modal.querySelector('#ck-next');
     if (nextBtn) {
@@ -637,7 +676,6 @@ function renderCheckout(modal) {
         }
         if (errorEl) errorEl.style.display = 'none';
         
-        // Solo guardar datos, NO enviar email todavía
         checkoutDatosCliente = { nombre, email, telefono, direccion };
         
         checkoutStep = 2;
@@ -646,15 +684,29 @@ function renderCheckout(modal) {
     }
   }
 
-  // Eventos del paso 2 - AQUÍ se envía el email y se vacía el carrito
   if (checkoutStep === 2) {
     const nextBtn = modal.querySelector('#ck-next');
     if (nextBtn) {
-      nextBtn.addEventListener('click', async () => {
-        // Enviar email con los datos del cliente
+      const newBtn = nextBtn.cloneNode(true);
+      nextBtn.parentNode.replaceChild(newBtn, nextBtn);
+      
+      newBtn.addEventListener('click', async () => {
+        const textoOriginal = newBtn.textContent;
+        newBtn.textContent = '🔍 Verificando stock...';
+        newBtn.disabled = true;
+        
+        const stockValido = await verificarStockEnTiempoReal();
+        
+        if (!stockValido) {
+          newBtn.textContent = textoOriginal;
+          newBtn.disabled = false;
+          cerrarCheckout();
+          return;
+        }
+        
+        newBtn.textContent = '📧 Confirmando pedido...';
         await confirmarPedidoConEmail(checkoutDatosCliente);
         
-        // Vaciar carrito SOLO después de enviar el email
         carrito = [];
         guardarCarrito();
         actualizarUI();
@@ -933,7 +985,6 @@ function inicializarEventos() {
     mostrarNotificacion('Bolsa vaciada', 'info');
   });
   
-  // Botón finalizar compra con nuevo checkout
   document.querySelector('.boton-finalizar-compra')?.addEventListener('click', () => {
     if (carrito.length === 0) {
       mostrarNotificacion('Tu bolsa está vacía', 'error');
