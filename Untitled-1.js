@@ -215,7 +215,7 @@ async function renderizarProductos() {
   
   // ✅ Opcional: recargar productos desde Firebase antes de mostrar
   // (comentado para no hacer muchas peticiones, pero podés descomentar)
-   await cargarProductosDesdeSheets();
+   //await cargarProductosDesdeSheets();
   
   const list = filtrarProductos(productos);
   const inicio = (paginaActual - 1) * PRODUCTOS_POR_PAGINA;
