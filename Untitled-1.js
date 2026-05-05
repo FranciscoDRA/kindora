@@ -11,11 +11,10 @@ const CSV_URL = window.SHEET_CSV_URL;
 const PLACEHOLDER_IMAGE = window.PLACEHOLDER_IMAGE;
 
 // ===============================
-// CONFIGURACIÓN EMAILJS (CORREGIDO)
+// CONFIGURACIÓN EMAILJS
 // ===============================
 const EMAILJS_PUBLIC_KEY = 'yYJ_1sm_T24de7v3O';
 const EMAILJS_SERVICE_ID = 'service_kindora';
-
 const TEMPLATE_CONTACTO = 'template_ddt6i41';   
 const TEMPLATE_COMPRA = 'template_an2edlc';      
 
@@ -79,8 +78,8 @@ function cargarCarrito() {
 function actualizarContadorCarrito() {
   const total = carrito.reduce((sum, item) => sum + item.cantidad, 0);
   document.querySelectorAll('#contador-carrito, .cart-count').forEach(el => {
-    el.textContent = total;
-    el.classList.toggle('visible', total > 0);
+    if (el) el.textContent = total;
+    if (el) el.classList.toggle('visible', total > 0);
   });
 }
 
@@ -97,7 +96,7 @@ function actualizarCategorias() {
 }
 
 // ===============================
-// CARGA DESDE GOOGLE SHEETS
+// CARGA DESDE FIREBASE
 // ===============================
 const FIREBASE_URL = 'https://kindora-47c88-default-rtdb.firebaseio.com/';
 
@@ -373,7 +372,7 @@ function renderizarCarrito() {
 }
 
 // ===============================
-// EMAILJS FUNCIONES (NUEVAS)
+// EMAILJS FUNCIONES
 // ===============================
 async function enviarCorreoContacto(formData) {
   try {
@@ -403,10 +402,9 @@ async function enviarCorreoCompra(datosCompra) {
       order_id:       datosCompra.orderId,
       order_date:     new Date().toLocaleString('es-UY'),
       total_amount:   datosCompra.total,
-      name:           datosCompra.cliente.nombre,
       client_name:    datosCompra.cliente.nombre,
       client_email:   datosCompra.cliente.email,
-      client_phone:   datosCompra.cliente.telefono  || '—',
+      client_phone:   datosCompra.cliente.telefono || '—',
       client_address: datosCompra.cliente.direccion || '—',
       products:       productosHtml,
     };
@@ -419,9 +417,38 @@ async function enviarCorreoCompra(datosCompra) {
   }
 }
 
-// ===============================
-// MODAL DE TRANSFERENCIA (MODIFICADO)
-// ===============================
+async function confirmarPedidoConEmail(datosCliente) {
+  const totalNumerico = carrito.reduce((sum, i) => sum + i.precio * i.cantidad, 0);
+  const orderId = 'KIN-' + Date.now().toString().slice(-8);
+  
+  const datosCompra = {
+    orderId: orderId,
+    total: totalNumerico.toLocaleString('es-UY'),
+    cliente: {
+      nombre: datosCliente.nombre,
+      email: datosCliente.email,
+      telefono: datosCliente.telefono || '—',
+      direccion: datosCliente.direccion || '—'
+    },
+    productos: [...carrito]
+  };
+  
+  mostrarNotificacion('Procesando tu pedido...', 'info');
+  
+  const result = await enviarCorreoCompra(datosCompra);
+  
+  if (result.success) {
+    mostrarNotificacion('✅ Pedido confirmado. Te enviaremos un email con los detalles.', 'exito');
+  } else {
+    mostrarNotificacion('⚠️ Pedido registrado. Nos contactaremos contigo pronto.', 'info');
+  }
+  
+  // Vaciar carrito
+  carrito = [];
+  guardarCarrito();
+  actualizarUI();
+}
+
 // ===============================
 // CHECKOUT EN PASOS
 // ===============================
@@ -454,16 +481,16 @@ function cerrarCheckout() {
   document.body.classList.remove('no-scroll');
 }
 
-// Alias para no romper eventos ya registrados
-function abrirModalTransferencia()   { abrirCheckout(); }
-function cerrarModalTransferencia()  { cerrarCheckout(); }
-function abrirModalDatosCliente()    { abrirCheckout(); }
-function cerrarModalDatosCliente()   { cerrarCheckout(); }
+// Alias para compatibilidad
+function abrirModalTransferencia() { abrirCheckout(); }
+function cerrarModalTransferencia() { cerrarCheckout(); }
+function abrirModalDatosCliente() { abrirCheckout(); }
+function cerrarModalDatosCliente() { cerrarCheckout(); }
 
 function renderCheckout(modal) {
-  const total     = carrito.reduce((s, i) => s + i.precio * i.cantidad, 0);
-  const totalStr  = total.toLocaleString('es-UY');
-  const steps     = ['Tu pedido', 'Pago', 'Confirmación'];
+  const total = carrito.reduce((s, i) => s + i.precio * i.cantidad, 0);
+  const totalStr = total.toLocaleString('es-UY');
+  const steps = ['Tu pedido', 'Pago', 'Confirmación'];
 
   const stepBar = steps.map((s, i) => `
     <div style="display:flex;align-items:center;gap:6px;flex:1;${i < steps.length - 1 ? 'flex:1;' : ''}">
@@ -503,7 +530,7 @@ function renderCheckout(modal) {
       </div>
       <div style="display:flex;flex-direction:column;gap:10px;">
         <input id="ck-nombre" placeholder="Nombre completo *" value="${checkoutDatosCliente.nombre || ''}"
-          style="padding:11px 14px;border:1.5px solid #d4c5b0;border-radius:8px;font-size:0.9rem;background:#fff;color:#3b2a1a;outline:none;transition:border 0.2s;">
+          style="padding:11px 14px;border:1.5px solid #d4c5b0;border-radius:8px;font-size:0.9rem;background:#fff;color:#3b2a1a;outline:none;">
         <input id="ck-email" type="email" placeholder="Email *" value="${checkoutDatosCliente.email || ''}"
           style="padding:11px 14px;border:1.5px solid #d4c5b0;border-radius:8px;font-size:0.9rem;background:#fff;color:#3b2a1a;outline:none;">
         <input id="ck-telefono" placeholder="Teléfono (opcional)" value="${checkoutDatosCliente.telefono || ''}"
@@ -512,9 +539,7 @@ function renderCheckout(modal) {
           style="padding:11px 14px;border:1.5px solid #d4c5b0;border-radius:8px;font-size:0.9rem;background:#fff;color:#3b2a1a;outline:none;">
         <p id="ck-error" style="display:none;color:#c0392b;font-size:0.8rem;margin:0;">* Nombre y email son obligatorios.</p>
       </div>
-      <button id="ck-next" style="
-        margin-top:18px;width:100%;padding:13px;background:#3b2a1a;color:#faf6f0;
-        border:none;border-radius:8px;font-size:0.95rem;font-weight:700;cursor:pointer;letter-spacing:0.5px;">
+      <button id="ck-next" style="margin-top:18px;width:100%;padding:13px;background:#3b2a1a;color:#faf6f0;border:none;border-radius:8px;font-size:0.95rem;font-weight:700;cursor:pointer;">
         Continuar al pago →
       </button>`;
 
@@ -541,7 +566,7 @@ function renderCheckout(modal) {
             </div>
           </div>`).join('')}
         <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0 0;">
-          <span style="font-size:0.82rem;font-weight:700;color:#7a6450;text-transform:uppercase;letter-spacing:0.5px;">Total a transferir</span>
+          <span style="font-size:0.82rem;font-weight:700;color:#7a6450;">Total a transferir</span>
           <span style="font-size:1.2rem;font-weight:800;color:#3b2a1a;">$U ${totalStr}</span>
         </div>
       </div>
@@ -549,13 +574,14 @@ function renderCheckout(modal) {
         display:flex;align-items:center;justify-content:center;gap:8px;
         width:100%;padding:13px;background:#25D366;color:#fff;
         border:none;border-radius:8px;font-size:0.95rem;font-weight:700;
-        cursor:pointer;text-decoration:none;box-sizing:border-box;margin-bottom:10px;">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.126.555 4.122 1.528 5.857L.057 23.927l6.233-1.635A11.945 11.945 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.818 9.818 0 01-5.015-1.378l-.36-.213-3.7.97.988-3.61-.235-.371A9.818 9.818 0 012.182 12C2.182 6.573 6.573 2.182 12 2.182S21.818 6.573 21.818 12 17.427 21.818 12 21.818z"/></svg>
+        cursor:pointer;text-decoration:none;margin-bottom:10px;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="white">
+          <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/>
+          <path d="M12 0C5.373 0 0 5.373 0 12c0 2.126.555 4.122 1.528 5.857L.057 23.927l6.233-1.635A11.945 11.945 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.818 9.818 0 01-5.015-1.378l-.36-.213-3.7.97.988-3.61-.235-.371A9.818 9.818 0 012.182 12C2.182 6.573 6.573 2.182 12 2.182S21.818 6.573 21.818 12 17.427 21.818 12 21.818z"/>
+        </svg>
         Enviar comprobante por WhatsApp
       </a>
-      <button id="ck-next" style="
-        width:100%;padding:13px;background:#2D6A4F;color:#fff;
-        border:none;border-radius:8px;font-size:0.95rem;font-weight:700;cursor:pointer;">
+      <button id="ck-next" style="width:100%;padding:13px;background:#2D6A4F;color:#fff;border:none;border-radius:8px;font-size:0.95rem;font-weight:700;cursor:pointer;">
         ✓ Ya realicé la transferencia
       </button>`;
 
@@ -564,61 +590,65 @@ function renderCheckout(modal) {
       <div style="text-align:center;padding:16px 0 8px;">
         <div style="font-size:3rem;margin-bottom:12px;">🎉</div>
         <h3 style="margin:0 0 8px;color:#2D6A4F;font-size:1.2rem;">¡Pedido registrado!</h3>
-        <p style="color:#7a6450;font-size:0.88rem;margin:0 0 20px;line-height:1.5;">
+        <p style="color:#7a6450;font-size:0.88rem;margin:0 0 20px;">
           Gracias <strong>${checkoutDatosCliente.nombre}</strong>. Te enviaremos una confirmación a<br>
           <strong>${checkoutDatosCliente.email}</strong>
         </p>
-        <div style="background:#f5f0e8;border-radius:10px;padding:14px;text-align:left;margin-bottom:20px;">
-          <p style="margin:4px 0;font-size:0.82rem;color:#7a6450;">En cuanto confirmemos tu transferencia, te contactamos para coordinar la entrega.</p>
+        <div style="background:#f5f0e8;border-radius:10px;padding:14px;margin-bottom:20px;">
+          <p style="margin:0;font-size:0.82rem;">En cuanto confirmemos tu transferencia, te contactamos.</p>
         </div>
-        <button onclick="cerrarCheckout()" style="
-          width:100%;padding:13px;background:#3b2a1a;color:#faf6f0;
-          border:none;border-radius:8px;font-size:0.95rem;font-weight:700;cursor:pointer;">
+        <button onclick="cerrarCheckout()" style="width:100%;padding:13px;background:#3b2a1a;color:#faf6f0;border:none;border-radius:8px;font-size:0.95rem;font-weight:700;cursor:pointer;">
           Cerrar
         </button>
       </div>`;
   }
 
   modal.innerHTML = `
-    <div style="
-      background:#faf6f0;border-radius:14px;padding:28px 24px;
-      max-width:440px;width:100%;box-shadow:0 16px 60px rgba(58,40,25,0.22);
-      max-height:90vh;overflow-y:auto;box-sizing:border-box;position:relative;">
-      <button onclick="cerrarCheckout()" style="
-        position:absolute;top:16px;right:16px;background:none;border:none;
-        font-size:1.3rem;cursor:pointer;color:#9a8878;line-height:1;">×</button>
+    <div style="background:#faf6f0;border-radius:14px;padding:28px 24px;max-width:440px;width:100%;box-shadow:0 16px 60px rgba(58,40,25,0.22);max-height:90vh;overflow-y:auto;position:relative;">
+      <button onclick="cerrarCheckout()" style="position:absolute;top:16px;right:16px;background:none;border:none;font-size:1.3rem;cursor:pointer;color:#9a8878;">×</button>
       <div style="display:flex;align-items:center;gap:4px;margin-bottom:22px;">${stepBar}</div>
       ${contenido}
     </div>`;
 
-  // Eventos del paso 1
   if (checkoutStep === 1) {
-    modal.querySelector('#ck-next')?.addEventListener('click', async () => {
-      const nombre   = modal.querySelector('#ck-nombre')?.value.trim();
-      const email    = modal.querySelector('#ck-email')?.value.trim();
-      const telefono = modal.querySelector('#ck-telefono')?.value.trim();
-      const direccion= modal.querySelector('#ck-direccion')?.value.trim();
-      const errorEl  = modal.querySelector('#ck-error');
-      if (!nombre || !email) { errorEl.style.display = 'block'; return; }
-      errorEl.style.display = 'none';
-      checkoutDatosCliente = { nombre, email, telefono, direccion };
-      const btn = modal.querySelector('#ck-next');
-      btn.disabled = true;
-      btn.textContent = 'Procesando...';
-      await confirmarPedidoConEmail(checkoutDatosCliente);
-      checkoutStep = 2;
-      renderCheckout(modal);
-    });
+    const nextBtn = modal.querySelector('#ck-next');
+    if (nextBtn) {
+      nextBtn.addEventListener('click', async () => {
+        const nombre = modal.querySelector('#ck-nombre')?.value.trim();
+        const email = modal.querySelector('#ck-email')?.value.trim();
+        const telefono = modal.querySelector('#ck-telefono')?.value.trim();
+        const direccion = modal.querySelector('#ck-direccion')?.value.trim();
+        const errorEl = modal.querySelector('#ck-error');
+        
+        if (!nombre || !email) {
+          if (errorEl) errorEl.style.display = 'block';
+          return;
+        }
+        if (errorEl) errorEl.style.display = 'none';
+        
+        checkoutDatosCliente = { nombre, email, telefono, direccion };
+        nextBtn.disabled = true;
+        nextBtn.textContent = 'Procesando...';
+        
+        await confirmarPedidoConEmail(checkoutDatosCliente);
+        
+        checkoutStep = 2;
+        renderCheckout(modal);
+      });
+    }
   }
 
-  // Eventos del paso 2
   if (checkoutStep === 2) {
-    modal.querySelector('#ck-next')?.addEventListener('click', () => {
-      checkoutStep = 3;
-      renderCheckout(modal);
-    });
+    const nextBtn = modal.querySelector('#ck-next');
+    if (nextBtn) {
+      nextBtn.addEventListener('click', () => {
+        checkoutStep = 3;
+        renderCheckout(modal);
+      });
+    }
   }
 }
+
 // ===============================
 // ACTUALIZAR UI
 // ===============================
@@ -692,24 +722,9 @@ function initShowcaseCarousel() {
   const PLACEHOLDER = window.PLACEHOLDER_IMAGE || 'https://placehold.co/480x640/EDE4D6/4A3728?text=Kindora';
   const INTERVAL = 4800;
   const DEMO_ITEMS = [
-    { 
-      nombre: 'Funda Caoba Premium', 
-      categoria: 'Fundas', 
-      precio: 1890, 
-      img: 'img/WhatsApp%20Image%202026-04-28%20at%2010.45.47.jpeg' 
-    },
-    { 
-      nombre: 'Funda Caoba Premium', 
-      categoria: 'Fundas', 
-      precio: 1890, 
-      img: 'img/WhatsApp Image 2026-04-28 at 10.46.08.jpeg' 
-    },
-    { 
-      nombre: 'Funda Caoba Premium', 
-      categoria: 'Fundas', 
-      precio: 1890, 
-      img: 'img/WhatsApp Image 2026-04-28 at 10.46.16.jpeg' 
-    },
+    { nombre: 'Funda Caoba Premium', categoria: 'Fundas', precio: 1890, img: 'img/WhatsApp%20Image%202026-04-28%20at%2010.45.47.jpeg' },
+    { nombre: 'Funda Caoba Premium', categoria: 'Fundas', precio: 1890, img: 'img/WhatsApp Image 2026-04-28 at 10.46.08.jpeg' },
+    { nombre: 'Funda Caoba Premium', categoria: 'Fundas', precio: 1890, img: 'img/WhatsApp Image 2026-04-28 at 10.46.16.jpeg' },
   ];
   const raw = (typeof productos !== 'undefined' && productos.length > 0) ? productos.slice(0, 8) : DEMO_ITEMS;
   const items = raw.map(p => ({
@@ -836,10 +851,8 @@ function initShowcaseCarousel() {
   resetProgress();
 }
 
-
-
 // ===============================
-// INICIALIZACIÓN (CORREGIDA CON EMAILJS)
+// INICIALIZACIÓN
 // ===============================
 function init() {
   cargarCarrito();
@@ -847,15 +860,13 @@ function init() {
   inicializarEventos();
   initShowcaseCarousel();
   
-  // Inicializar EmailJS
   if (window.emailjs) {
     emailjs.init(EMAILJS_PUBLIC_KEY);
-    console.log('✅ EmailJS inicializado con clave:', EMAILJS_PUBLIC_KEY);
+    console.log('✅ EmailJS inicializado');
   } else {
-    console.warn('⚠️ EmailJS no cargado. Revisa que el script esté incluido.');
+    console.warn('⚠️ EmailJS no cargado');
   }
   
-  // ===== FORMULARIO DE CONTACTO =====
   const formContacto = document.getElementById('form-contacto');
   if (formContacto) {
     formContacto.addEventListener('submit', async function(event) {
@@ -879,7 +890,6 @@ function init() {
         }
         mostrarNotificacion('¡Mensaje enviado con éxito! Te responderemos pronto 📖', 'exito');
       } else {
-        console.error('Error detallado:', result.error);
         mostrarNotificacion('Error al enviar. Por favor intentá de nuevo.', 'error');
       }
       
@@ -892,7 +902,7 @@ function init() {
 }
 
 // ===============================
-// EVENTOS (MODIFICADO PARA EMAILJS)
+// EVENTOS
 // ===============================
 function inicializarEventos() {
   document.getElementById('carrito-btn-main')?.addEventListener('click', toggleCarrito);
@@ -906,51 +916,14 @@ function inicializarEventos() {
     mostrarNotificacion('Bolsa vaciada', 'info');
   });
   
-  // Botón finalizar compra MODIFICADO
+  // Botón finalizar compra con nuevo checkout
   document.querySelector('.boton-finalizar-compra')?.addEventListener('click', () => {
     if (carrito.length === 0) {
       mostrarNotificacion('Tu bolsa está vacía', 'error');
       return;
     }
     if (document.querySelector('.carrito-panel')?.classList.contains('open')) toggleCarrito();
-    setTimeout(abrirModalTransferencia, 320);
-  });
-  
-  // Botón ENTENDIDO del modal - MODIFICADO para enviar email
-  document.getElementById('btn-entendido-aviso')?.addEventListener('click', () => {
-  cerrarModalTransferencia();
-  setTimeout(() => abrirModalDatosCliente(), 200);
-});
-
-document.getElementById('btn-cancelar-cliente')?.addEventListener('click', cerrarModalDatosCliente);
-
-document.getElementById('btn-confirmar-cliente')?.addEventListener('click', async () => {
-  const nombre    = document.getElementById('cliente-nombre')?.value.trim();
-  const email     = document.getElementById('cliente-email')?.value.trim();
-  const telefono  = document.getElementById('cliente-telefono')?.value.trim();
-  const direccion = document.getElementById('cliente-direccion')?.value.trim();
-  const errorEl   = document.getElementById('cliente-error');
-
-  if (!nombre || !email) {
-    errorEl.style.display = 'block';
-    return;
-  }
-  errorEl.style.display = 'none';
-
-  const btn = document.getElementById('btn-confirmar-cliente');
-  btn.disabled = true;
-  btn.textContent = 'Enviando...';
-
-  await confirmarPedidoConEmail({ nombre, email, telefono, direccion });
-
-  btn.disabled = false;
-  btn.textContent = 'Confirmar pedido →';
-  cerrarModalDatosCliente();
-});
-  
-  document.getElementById('btn-cancelar-aviso')?.addEventListener('click', cerrarModalTransferencia);
-  document.getElementById('aviso-pre-compra-modal')?.addEventListener('click', (e) => { 
-    if (e.target === document.getElementById('aviso-pre-compra-modal')) cerrarModalTransferencia(); 
+    setTimeout(abrirCheckout, 320);
   });
   
   document.getElementById('input-busqueda')?.addEventListener('input', (e) => { 
@@ -1004,7 +977,7 @@ document.getElementById('btn-confirmar-cliente')?.addEventListener('click', asyn
         getElement('producto-modal').style.display = 'none';
         document.body.classList.remove('no-scroll');
       }
-      if (getElement('aviso-pre-compra-modal')?.style.display === 'flex') cerrarModalTransferencia();
+      if (getElement('checkout-modal')?.style.display === 'flex') cerrarCheckout();
     }
   });
   
@@ -1041,4 +1014,3 @@ document.getElementById('btn-confirmar-cliente')?.addEventListener('click', asyn
 // ===============================
 if (document.readyState !== 'loading') init();
 else document.addEventListener('DOMContentLoaded', init);
-
