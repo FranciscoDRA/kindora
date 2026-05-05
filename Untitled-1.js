@@ -422,57 +422,203 @@ async function enviarCorreoCompra(datosCompra) {
 // ===============================
 // MODAL DE TRANSFERENCIA (MODIFICADO)
 // ===============================
-function abrirModalTransferencia() {
-  const modal = getElement('aviso-pre-compra-modal');
-  if (!modal) return;
-  const total = carrito.reduce((sum, i) => sum + i.precio * i.cantidad, 0);
-  const totalStr = `$U ${total.toLocaleString('es-UY')}`;
-  const montoEl = document.getElementById('monto-transferencia');
-  if (montoEl) montoEl.textContent = totalStr;
-  const items = carrito.map(i => `• ${i.nombre} x${i.cantidad} = $U ${(i.precio * i.cantidad).toLocaleString('es-UY')}`).join('%0A');
-  const wspMsg = encodeURIComponent(`Hola Kindora! 👋 Quiero enviar mi comprobante de pago.\n\nPedido:\n${carrito.map(i => `• ${i.nombre} x${i.cantidad}`).join('\n')}\n\nTotal: ${totalStr}\n\nAdjunto el comprobante de transferencia.`);
-  const wspLink = document.getElementById('wsp-link');
-  if (wspLink) wspLink.href = `https://wa.me/${WHATSAPP_NUMERO}?text=${wspMsg}`;
+// ===============================
+// CHECKOUT EN PASOS
+// ===============================
+let checkoutStep = 1;
+let checkoutDatosCliente = {};
+
+function abrirCheckout() {
+  if (carrito.length === 0) { mostrarNotificacion('Tu bolsa está vacía', 'error'); return; }
+  checkoutStep = 1;
+  let modal = getElement('checkout-modal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'checkout-modal';
+    modal.style.cssText = `
+      display:none;position:fixed;inset:0;
+      background:rgba(58,40,25,0.6);backdrop-filter:blur(4px);
+      z-index:9999;align-items:center;justify-content:center;
+      padding:16px;box-sizing:border-box;`;
+    document.body.appendChild(modal);
+    modal.addEventListener('click', (e) => { if (e.target === modal) cerrarCheckout(); });
+  }
+  renderCheckout(modal);
   modal.style.display = 'flex';
   document.body.classList.add('no-scroll');
 }
 
-function cerrarModalTransferencia() {
-  const modal = getElement('aviso-pre-compra-modal');
-  if (!modal) return;
-  modal.style.display = 'none';
+function cerrarCheckout() {
+  const modal = getElement('checkout-modal');
+  if (modal) modal.style.display = 'none';
   document.body.classList.remove('no-scroll');
 }
 
-// Función para confirmar pedido y enviar email
-async function confirmarPedidoConEmail(datosCliente) {
-  const totalNumerico = carrito.reduce((sum, i) => sum + i.precio * i.cantidad, 0);
-  const orderId = 'KIN-' + Date.now().toString().slice(-8);
-  
-  const datosCompra = {
-    orderId: orderId,
-    total: totalNumerico.toLocaleString('es-UY'),
-    cliente: datosCliente,
-    productos: [...carrito]
-  };
-  
-  // Mostrar loading
-  mostrarNotificacion('Procesando tu pedido...', 'info');
-  
-  const result = await enviarCorreoCompra(datosCompra);
-  
-  if (result.success) {
-    mostrarNotificacion('✅ Pedido confirmado. Te enviaremos un email con los detalles.', 'exito');
-  } else {
-    mostrarNotificacion('⚠️ Pedido registrado. Nos contactaremos contigo pronto.', 'info');
-  }
-  
-  // Vaciar carrito
-  carrito = [];
-  guardarCarrito();
-  actualizarUI();
-}
+// Alias para no romper eventos ya registrados
+function abrirModalTransferencia()   { abrirCheckout(); }
+function cerrarModalTransferencia()  { cerrarCheckout(); }
+function abrirModalDatosCliente()    { abrirCheckout(); }
+function cerrarModalDatosCliente()   { cerrarCheckout(); }
 
+function renderCheckout(modal) {
+  const total     = carrito.reduce((s, i) => s + i.precio * i.cantidad, 0);
+  const totalStr  = total.toLocaleString('es-UY');
+  const steps     = ['Tu pedido', 'Pago', 'Confirmación'];
+
+  const stepBar = steps.map((s, i) => `
+    <div style="display:flex;align-items:center;gap:6px;flex:1;${i < steps.length - 1 ? 'flex:1;' : ''}">
+      <div style="
+        width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+        font-size:0.75rem;font-weight:700;flex-shrink:0;transition:all 0.3s;
+        background:${checkoutStep > i + 1 ? '#2D6A4F' : checkoutStep === i + 1 ? '#3b2a1a' : '#e0d8ce'};
+        color:${checkoutStep >= i + 1 ? '#fff' : '#9a8878'};">
+        ${checkoutStep > i + 1 ? '✓' : i + 1}
+      </div>
+      <span style="font-size:0.78rem;font-weight:${checkoutStep === i + 1 ? '600' : '400'};
+        color:${checkoutStep === i + 1 ? '#3b2a1a' : '#9a8878'};white-space:nowrap;">${s}</span>
+      ${i < steps.length - 1 ? `<div style="flex:1;height:1px;background:${checkoutStep > i + 1 ? '#2D6A4F' : '#e0d8ce'};margin:0 4px;"></div>` : ''}
+    </div>`).join('');
+
+  const resumenItems = carrito.map(i => `
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid #ede5d8;">
+      <div style="display:flex;align-items:center;gap:10px;">
+        ${i.imagen ? `<img src="${i.imagen}" style="width:40px;height:40px;object-fit:cover;border-radius:6px;">` : ''}
+        <div>
+          <div style="font-size:0.88rem;font-weight:600;color:#3b2a1a;">${i.nombre}</div>
+          <div style="font-size:0.78rem;color:#9a8878;">x${i.cantidad}</div>
+        </div>
+      </div>
+      <div style="font-size:0.9rem;font-weight:700;color:#3b2a1a;">$U ${(i.precio * i.cantidad).toLocaleString('es-UY')}</div>
+    </div>`).join('');
+
+  let contenido = '';
+
+  if (checkoutStep === 1) {
+    contenido = `
+      <div style="font-size:0.82rem;color:#7a6450;margin-bottom:16px;">Revisá tu pedido y completá tus datos.</div>
+      <div style="max-height:180px;overflow-y:auto;margin-bottom:18px;">${resumenItems}</div>
+      <div style="display:flex;justify-content:space-between;padding:10px 0;margin-bottom:18px;border-top:2px solid #3b2a1a;">
+        <span style="font-weight:700;color:#3b2a1a;">Total</span>
+        <span style="font-weight:700;color:#3b2a1a;font-size:1.05rem;">$U ${totalStr}</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        <input id="ck-nombre" placeholder="Nombre completo *" value="${checkoutDatosCliente.nombre || ''}"
+          style="padding:11px 14px;border:1.5px solid #d4c5b0;border-radius:8px;font-size:0.9rem;background:#fff;color:#3b2a1a;outline:none;transition:border 0.2s;">
+        <input id="ck-email" type="email" placeholder="Email *" value="${checkoutDatosCliente.email || ''}"
+          style="padding:11px 14px;border:1.5px solid #d4c5b0;border-radius:8px;font-size:0.9rem;background:#fff;color:#3b2a1a;outline:none;">
+        <input id="ck-telefono" placeholder="Teléfono (opcional)" value="${checkoutDatosCliente.telefono || ''}"
+          style="padding:11px 14px;border:1.5px solid #d4c5b0;border-radius:8px;font-size:0.9rem;background:#fff;color:#3b2a1a;outline:none;">
+        <input id="ck-direccion" placeholder="Dirección de entrega (opcional)" value="${checkoutDatosCliente.direccion || ''}"
+          style="padding:11px 14px;border:1.5px solid #d4c5b0;border-radius:8px;font-size:0.9rem;background:#fff;color:#3b2a1a;outline:none;">
+        <p id="ck-error" style="display:none;color:#c0392b;font-size:0.8rem;margin:0;">* Nombre y email son obligatorios.</p>
+      </div>
+      <button id="ck-next" style="
+        margin-top:18px;width:100%;padding:13px;background:#3b2a1a;color:#faf6f0;
+        border:none;border-radius:8px;font-size:0.95rem;font-weight:700;cursor:pointer;letter-spacing:0.5px;">
+        Continuar al pago →
+      </button>`;
+
+  } else if (checkoutStep === 2) {
+    const wspMsg = encodeURIComponent(
+      `Hola Kindora! 👋 Quiero enviar mi comprobante.\n\nPedido:\n${carrito.map(i => `• ${i.nombre} x${i.cantidad}`).join('\n')}\n\nTotal: $U ${totalStr}\n\nAdjunto el comprobante.`
+    );
+    contenido = `
+      <div style="font-size:0.82rem;color:#7a6450;margin-bottom:16px;">
+        Realizá la transferencia y envianos el comprobante por WhatsApp.
+      </div>
+      <div style="background:#f5f0e8;border-radius:10px;padding:16px;margin-bottom:16px;">
+        ${[
+          ['Banco', CUENTA_BANCO],
+          ['N° de cuenta', CUENTA_NUMERO],
+          ['Titular', CUENTA_TITULAR],
+        ].map(([label, val]) => `
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid #e0d5c5;">
+            <span style="font-size:0.82rem;color:#7a6450;">${label}</span>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <span style="font-weight:600;color:#3b2a1a;font-size:0.9rem;">${val}</span>
+              <button onclick="navigator.clipboard.writeText('${val}');this.textContent='✓';setTimeout(()=>this.textContent='⎘',1500)"
+                style="background:#e8dfd3;border:none;border-radius:5px;padding:3px 7px;cursor:pointer;font-size:0.75rem;color:#3b2a1a;">⎘</button>
+            </div>
+          </div>`).join('')}
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0 0;">
+          <span style="font-size:0.82rem;font-weight:700;color:#7a6450;text-transform:uppercase;letter-spacing:0.5px;">Total a transferir</span>
+          <span style="font-size:1.2rem;font-weight:800;color:#3b2a1a;">$U ${totalStr}</span>
+        </div>
+      </div>
+      <a href="https://wa.me/${WHATSAPP_NUMERO}?text=${wspMsg}" target="_blank" style="
+        display:flex;align-items:center;justify-content:center;gap:8px;
+        width:100%;padding:13px;background:#25D366;color:#fff;
+        border:none;border-radius:8px;font-size:0.95rem;font-weight:700;
+        cursor:pointer;text-decoration:none;box-sizing:border-box;margin-bottom:10px;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.126.555 4.122 1.528 5.857L.057 23.927l6.233-1.635A11.945 11.945 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.818 9.818 0 01-5.015-1.378l-.36-.213-3.7.97.988-3.61-.235-.371A9.818 9.818 0 012.182 12C2.182 6.573 6.573 2.182 12 2.182S21.818 6.573 21.818 12 17.427 21.818 12 21.818z"/></svg>
+        Enviar comprobante por WhatsApp
+      </a>
+      <button id="ck-next" style="
+        width:100%;padding:13px;background:#2D6A4F;color:#fff;
+        border:none;border-radius:8px;font-size:0.95rem;font-weight:700;cursor:pointer;">
+        ✓ Ya realicé la transferencia
+      </button>`;
+
+  } else if (checkoutStep === 3) {
+    contenido = `
+      <div style="text-align:center;padding:16px 0 8px;">
+        <div style="font-size:3rem;margin-bottom:12px;">🎉</div>
+        <h3 style="margin:0 0 8px;color:#2D6A4F;font-size:1.2rem;">¡Pedido registrado!</h3>
+        <p style="color:#7a6450;font-size:0.88rem;margin:0 0 20px;line-height:1.5;">
+          Gracias <strong>${checkoutDatosCliente.nombre}</strong>. Te enviaremos una confirmación a<br>
+          <strong>${checkoutDatosCliente.email}</strong>
+        </p>
+        <div style="background:#f5f0e8;border-radius:10px;padding:14px;text-align:left;margin-bottom:20px;">
+          <p style="margin:4px 0;font-size:0.82rem;color:#7a6450;">En cuanto confirmemos tu transferencia, te contactamos para coordinar la entrega.</p>
+        </div>
+        <button onclick="cerrarCheckout()" style="
+          width:100%;padding:13px;background:#3b2a1a;color:#faf6f0;
+          border:none;border-radius:8px;font-size:0.95rem;font-weight:700;cursor:pointer;">
+          Cerrar
+        </button>
+      </div>`;
+  }
+
+  modal.innerHTML = `
+    <div style="
+      background:#faf6f0;border-radius:14px;padding:28px 24px;
+      max-width:440px;width:100%;box-shadow:0 16px 60px rgba(58,40,25,0.22);
+      max-height:90vh;overflow-y:auto;box-sizing:border-box;position:relative;">
+      <button onclick="cerrarCheckout()" style="
+        position:absolute;top:16px;right:16px;background:none;border:none;
+        font-size:1.3rem;cursor:pointer;color:#9a8878;line-height:1;">×</button>
+      <div style="display:flex;align-items:center;gap:4px;margin-bottom:22px;">${stepBar}</div>
+      ${contenido}
+    </div>`;
+
+  // Eventos del paso 1
+  if (checkoutStep === 1) {
+    modal.querySelector('#ck-next')?.addEventListener('click', async () => {
+      const nombre   = modal.querySelector('#ck-nombre')?.value.trim();
+      const email    = modal.querySelector('#ck-email')?.value.trim();
+      const telefono = modal.querySelector('#ck-telefono')?.value.trim();
+      const direccion= modal.querySelector('#ck-direccion')?.value.trim();
+      const errorEl  = modal.querySelector('#ck-error');
+      if (!nombre || !email) { errorEl.style.display = 'block'; return; }
+      errorEl.style.display = 'none';
+      checkoutDatosCliente = { nombre, email, telefono, direccion };
+      const btn = modal.querySelector('#ck-next');
+      btn.disabled = true;
+      btn.textContent = 'Procesando...';
+      await confirmarPedidoConEmail(checkoutDatosCliente);
+      checkoutStep = 2;
+      renderCheckout(modal);
+    });
+  }
+
+  // Eventos del paso 2
+  if (checkoutStep === 2) {
+    modal.querySelector('#ck-next')?.addEventListener('click', () => {
+      checkoutStep = 3;
+      renderCheckout(modal);
+    });
+  }
+}
 // ===============================
 // ACTUALIZAR UI
 // ===============================
@@ -690,64 +836,7 @@ function initShowcaseCarousel() {
   resetProgress();
 }
 
-// ===============================
-// KINDLE INTERACTIVO
-// ===============================
-(function() {
-  const pages = [
-    { chapter: "CAPÍTULO PRIMERO", title: "El secreto del bosque", page: "— 12 —",
-      lines: ["La mañana llegó envuelta en un silencio","extraño, como si el bosque mismo hubiera","contenido la respiración durante la noche.","Mara abrió los ojos antes de que el sol","tocara el horizonte, impulsada por una","inquietud que no sabía nombrar. Desde su","ventana, los robles centenarios se erguían","inmóviles, sus ramas formando una bóveda.","","     —¿Lo escuchaste anoche? —susurró su","hermano Tomás desde el umbral, con los ojos","aún pesados de sueño pero la voz cargada.","","     Mara asintió sin palabras. El sonido","—aquella vibración grave que recorrió el","suelo como un pulso subterráneo— la había","despertado a las tres de la madrugada. No","era el viento. Era algo más antiguo."] },
-    { chapter: "CAPÍTULO SEGUNDO", title: "El camino de raíces", page: "— 28 —",
-      lines: ["Al amanecer, los dos hermanos cruzaron","el umbral sin decirse nada. Las palabras","sobraban cuando el bosque llamaba así.","","     El sendero era apenas una sugerencia","entre la hojarasca. Las raíces emergían","del suelo como dedos, como advertencias.","Mara las esquivaba sin mirar; las conocía","de memoria, las había recorrido de niña.","","     Pero el bosque no era el mismo.","Los pájaros callaban. La luz del alba","se filtraba distinta, más dorada, más","espesa. Como si el aire mismo tuviera","memoria y eligiera recordar."] },
-    { chapter: "CAPÍTULO TERCERO", title: "El círculo de robles", page: "— 41 —",
-      lines: ["Lo encontraron al mediodía: el claro.","Siete robles dispuestos en círculo perfecto,","sus troncos tan viejos que parecían piedra.","","     En el centro, la tierra era diferente.","Más oscura. Más quieta. Sin insectos,","sin musgo, sin la vida pequeña que","cubría todo lo demás.","","     —El mapa decía aquí —murmuró Tomás.","","     Mara no respondió. Estaba mirando","el suelo, donde algo pulsaba, lento","y profundo, como un corazón dormido","esperando el momento exacto de despertar."] }
-  ];
-  const device = document.querySelector('.device');
-  if (!device) return;
-  const scene = document.querySelector('.ereader-scene');
-  if (scene && !document.querySelector('.kindle-progress')) {
-    const progressWrap = document.createElement('div');
-    progressWrap.className = 'kindle-progress';
-    const progressFill = document.createElement('div');
-    progressFill.className = 'kindle-progress-fill';
-    progressWrap.appendChild(progressFill);
-    scene.appendChild(progressWrap);
-    const style = document.createElement('style');
-    style.textContent = `.kindle-progress { position: absolute; bottom: 30px; left: 30px; right: 30px; height: 1.5px; background: rgba(212,163,115,0.25); z-index: 5; } .kindle-progress-fill { height: 100%; width: 0%; background: var(--sepia); transition: width 0.6s ease; }`;
-    document.head.appendChild(style);
-  }
-  const progressFill = document.querySelector('.kindle-progress-fill');
-  const textGroup = device.querySelector('g[font-family]');
-  const chapterEl = device.querySelector('text[letter-spacing="2.5"]');
-  const titleEl = device.querySelector('text[font-size="13"]');
-  const pageNumEl = device.querySelector('text[letter-spacing="1"]');
-  if (!textGroup) return;
-  const textEls = Array.from(textGroup.querySelectorAll('text'));
-  let current = 0, paused = false, timer;
-  function setPage(idx, animate) {
-    const p = pages[idx];
-    if (progressFill) progressFill.style.width = ((idx + 1) / pages.length * 100) + '%';
-    const doUpdate = () => {
-      if (chapterEl) chapterEl.textContent = p.chapter;
-      if (titleEl) titleEl.textContent = p.title;
-      if (pageNumEl) pageNumEl.textContent = p.page;
-      textEls.forEach((el, i) => { el.textContent = i < p.lines.length ? p.lines[i] : ''; });
-    };
-    if (animate) {
-      device.style.opacity = '0.85';
-      device.style.transition = 'opacity 0.08s';
-      setTimeout(() => { doUpdate(); device.style.opacity = '1'; }, 90);
-    } else { doUpdate(); }
-  }
-  function nextPage() { if (!paused) { current = (current + 1) % pages.length; setPage(current, true); } }
-  function startTimer() { clearInterval(timer); timer = setInterval(nextPage, 5000); }
-  if (scene) {
-    scene.addEventListener('mouseenter', () => { paused = true; });
-    scene.addEventListener('mouseleave', () => { paused = false; startTimer(); });
-  }
-  setPage(0, false);
-  startTimer();
-})();
+
 
 // ===============================
 // INICIALIZACIÓN (CORREGIDA CON EMAILJS)
@@ -953,60 +1042,3 @@ document.getElementById('btn-confirmar-cliente')?.addEventListener('click', asyn
 if (document.readyState !== 'loading') init();
 else document.addEventListener('DOMContentLoaded', init);
 
-// ===============================
-// MODAL DATOS CLIENTE
-// ===============================
-function abrirModalDatosCliente() {
-  let modal = getElement('modal-datos-cliente');
-  if (!modal) {
-    modal = document.createElement('div');
-    modal.id = 'modal-datos-cliente';
-    modal.style.cssText = 'display:none;position:fixed;inset:0;background:rgba(74,55,40,0.55);z-index:9999;align-items:center;justify-content:center;';
-    modal.innerHTML = `
-      <div style="background:#faf6f0;border-radius:12px;padding:36px 32px;max-width:420px;width:90%;box-shadow:0 8px 40px rgba(74,55,40,0.18);">
-        <h3 style="margin:0 0 6px;font-family:Georgia,serif;color:#3b2a1a;font-size:1.25rem;">Confirmá tu pedido</h3>
-        <p style="margin:0 0 22px;font-size:0.85rem;color:#7a6450;">Completá tus datos para registrar la compra y recibir confirmación.</p>
-        <div style="display:flex;flex-direction:column;gap:12px;">
-          <input id="cliente-nombre" placeholder="Nombre completo *" style="padding:10px 14px;border:1px solid #d4c5b0;border-radius:7px;font-size:0.95rem;background:#fff;color:#3b2a1a;outline:none;">
-          <input id="cliente-email" type="email" placeholder="Email *" style="padding:10px 14px;border:1px solid #d4c5b0;border-radius:7px;font-size:0.95rem;background:#fff;color:#3b2a1a;outline:none;">
-          <input id="cliente-telefono" placeholder="Teléfono (opcional)" style="padding:10px 14px;border:1px solid #d4c5b0;border-radius:7px;font-size:0.95rem;background:#fff;color:#3b2a1a;outline:none;">
-          <input id="cliente-direccion" placeholder="Dirección de entrega (opcional)" style="padding:10px 14px;border:1px solid #d4c5b0;border-radius:7px;font-size:0.95rem;background:#fff;color:#3b2a1a;outline:none;">
-          <p id="cliente-error" style="display:none;color:#c0392b;font-size:0.82rem;margin:0;">* Nombre y email son obligatorios.</p>
-        </div>
-        <div style="display:flex;gap:10px;margin-top:22px;">
-          <button id="btn-cancelar-cliente" style="flex:1;padding:11px;border:1px solid #d4c5b0;background:transparent;border-radius:7px;color:#7a6450;cursor:pointer;font-size:0.9rem;">Cancelar</button>
-          <button id="btn-confirmar-cliente" style="flex:2;padding:11px;background:#3b2a1a;color:#faf6f0;border:none;border-radius:7px;cursor:pointer;font-size:0.95rem;font-weight:600;">Confirmar pedido →</button>
-        </div>
-      </div>`;
-    document.body.appendChild(modal);
-
-    // Reasignar eventos porque el DOM cambió
-    document.getElementById('btn-cancelar-cliente').addEventListener('click', cerrarModalDatosCliente);
-    document.getElementById('btn-confirmar-cliente').addEventListener('click', async () => {
-      const nombre    = document.getElementById('cliente-nombre')?.value.trim();
-      const email     = document.getElementById('cliente-email')?.value.trim();
-      const telefono  = document.getElementById('cliente-telefono')?.value.trim();
-      const direccion = document.getElementById('cliente-direccion')?.value.trim();
-      const errorEl   = document.getElementById('cliente-error');
-      if (!nombre || !email) { errorEl.style.display = 'block'; return; }
-      errorEl.style.display = 'none';
-      const btn = document.getElementById('btn-confirmar-cliente');
-      btn.disabled = true;
-      btn.textContent = 'Enviando...';
-      await confirmarPedidoConEmail({ nombre, email, telefono, direccion });
-      btn.disabled = false;
-      btn.textContent = 'Confirmar pedido →';
-      cerrarModalDatosCliente();
-    });
-    modal.addEventListener('click', (e) => { if (e.target === modal) cerrarModalDatosCliente(); });
-  }
-  modal.style.display = 'flex';
-  document.body.classList.add('no-scroll');
-}
-
-function cerrarModalDatosCliente() {
-  const modal = getElement('modal-datos-cliente');
-  if (!modal) return;
-  modal.style.display = 'none';
-  document.body.classList.remove('no-scroll');
-}
