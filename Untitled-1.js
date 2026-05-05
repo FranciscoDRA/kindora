@@ -1,5 +1,5 @@
 // ===============================
-// CONFIGURACIÓN — KINDORA (basado en Patofelting)
+// CONFIGURACIÓN — KINDORA
 // ===============================
 const WHATSAPP_NUMERO  = '59899000000';
 const CUENTA_BANCO     = 'BROU';
@@ -11,27 +11,21 @@ const CSV_URL = window.SHEET_CSV_URL;
 const PLACEHOLDER_IMAGE = window.PLACEHOLDER_IMAGE;
 
 // ===============================
-// CONFIGURACIÓN FIREBASE
-// ===============================
-// Usamos Firebase Realtime Database (igual que Patofelting)
-// Asegurate de tener firebase.js cargado antes
-const FIREBASE_URL = 'https://kindora-47c88-default-rtdb.firebaseio.com/';
-let db = null;
-let auth = null;
-
-// Inicializar Firebase (si usás el SDK completo)
-if (typeof firebase !== 'undefined') {
-    db = firebase.database();
-    auth = firebase.auth();
-}
-
-// ===============================
 // CONFIGURACIÓN EMAILJS
 // ===============================
 const EMAILJS_PUBLIC_KEY = 'yYJ_1sm_T24de7v3O';
 const EMAILJS_SERVICE_ID = 'service_kindora';
 const TEMPLATE_CONTACTO = 'template_ddt6i41';   
 const TEMPLATE_COMPRA = 'template_an2edlc';
+
+// ===============================
+// FIREBASE - Usar configuración centralizada
+// ===============================
+// window.firebaseDb y window.firebaseAuth vienen de firebase-config.js
+const FIREBASE_URL = 'https://kindora-47c88-default-rtdb.firebaseio.com/';
+let db = window.firebaseDb;
+let auth = window.firebaseAuth;
+const HAS_FIREBASE_SDK = typeof db !== 'undefined' && db && typeof db.ref === 'function';
 
 // ===============================
 // ESTADO GLOBAL
@@ -41,7 +35,7 @@ let carrito = [];
 let paginaActual = 1;
 let productosCargados = false;
 
-// 🆕 Variables de control (estilo Patofelting)
+// Variables de control (estilo Patofelting)
 let suprimirRealtime = 0;       // Evita parpadeo en actualizaciones propias
 const inFlightAdds = new Set();  // Evita doble click en el mismo producto
 const keyById = {};              // Mapeo: id del producto → key real en Firebase
@@ -129,7 +123,7 @@ function procesarDatosProductos(data) {
       const id = parseInt(p.id, 10);
       if (!Number.isFinite(id)) return null;
       
-      // 🆕 Guardar mapeo id → key real de Firebase
+      // Guardar mapeo id → key real de Firebase
       keyById[id] = key;
       
       return {
@@ -159,7 +153,7 @@ function procesarDatosProductos(data) {
 }
 
 // ===============================
-// CARGA DESDE FIREBASE CON REALTIME (igual que Patofelting)
+// CARGA DESDE FIREBASE CON REALTIME
 // ===============================
 async function cargarProductosDesdeFirebase() {
   const galeria = getElement('galeria-productos');
@@ -170,7 +164,7 @@ async function cargarProductosDesdeFirebase() {
     }
     
     // Si tenemos Firebase SDK, usamos onValue (lo mejor)
-    if (db && typeof db.ref === 'function') {
+    if (HAS_FIREBASE_SDK) {
       const productosRef = db.ref('productos');
       
       // Carga inicial
@@ -183,7 +177,7 @@ async function cargarProductosDesdeFirebase() {
         initShowcaseCarousel();
       }
       
-      // 🆕 Listener en tiempo real (igual que Patofelting)
+      // Listener en tiempo real (igual que Patofelting)
       productosRef.on('value', (snap) => {
         if (suprimirRealtime > 0) {
           suprimirRealtime--;
@@ -201,7 +195,7 @@ async function cargarProductosDesdeFirebase() {
       });
       
     } else {
-      // Fallback: fetch + polling (cuando no hay Firebase SDK)
+      // Fallback: fetch + polling
       await cargarProductosDesdeSheetsFallback();
       iniciarListenerTiempoReal();
     }
@@ -215,7 +209,7 @@ async function cargarProductosDesdeFirebase() {
   }
 }
 
-// Fallback con fetch + polling (por si no hay Firebase SDK)
+// Fallback con fetch
 async function cargarProductosDesdeSheetsFallback() {
   const galeria = getElement('galeria-productos');
   try {
@@ -246,7 +240,6 @@ function iniciarListenerTiempoReal() {
       const data = await resp.json();
       if (!data) return;
       
-      // Verificar si algún stock cambió
       let stockCambiado = false;
       for (const item of carrito) {
         const prodActual = Object.values(data).find(p => p && p.id == item.id);
@@ -256,7 +249,6 @@ function iniciarListenerTiempoReal() {
         }
       }
       
-      // También verificar productos agotados
       for (const prod of productos) {
         const prodActual = Object.values(data).find(p => p && p.id == prod.id);
         if (prodActual && parseInt(prodActual.stock) !== prod.stock) {
@@ -287,6 +279,9 @@ function actualizarCategorias() {
   select.innerHTML = categorias
     .map(cat => `<option value="${cat}">${cat.charAt(0).toUpperCase() + cat.slice(1)}</option>`)
     .join('');
+  if (select.value !== filtrosActuales.categoria) {
+    select.value = filtrosActuales.categoria;
+  }
 }
 
 // ===============================
@@ -476,7 +471,7 @@ async function agregarAlCarrito(id, cantidad = 1) {
   }
   
   // Si tenemos Firebase SDK, usamos runTransaction
-  if (db && typeof db.ref === 'function') {
+  if (HAS_FIREBASE_SDK && db && typeof db.ref === 'function') {
     try {
       const key = getDbKeyFromId(id);
       if (!key) throw new Error('Key no encontrada');
@@ -529,7 +524,6 @@ async function agregarAlCarrito(id, cantidad = 1) {
   } else {
     // Fallback con fetch (sin Firebase SDK)
     try {
-      // Verificar stock actual en Firebase
       const resp = await fetch(FIREBASE_URL + 'productos/.json');
       const data = await resp.json();
       const productosActualizados = Object.values(data);
@@ -544,7 +538,6 @@ async function agregarAlCarrito(id, cantidad = 1) {
         return;
       }
       
-      // Descontar stock
       const key = getDbKeyFromId(id);
       const nuevoStock = stockReal - cantidadAgregar;
       const updateResp = await fetch(`${FIREBASE_URL}productos/${key}/stock.json`, {
@@ -555,10 +548,8 @@ async function agregarAlCarrito(id, cantidad = 1) {
       
       if (!updateResp.ok) throw new Error('Error al actualizar stock');
       
-      // Actualizar stock local
       producto.stock = nuevoStock;
       
-      // Agregar al carrito
       const enCarrito = carrito.find(item => item.id === id);
       if (enCarrito) {
         enCarrito.cantidad += cantidadAgregar;
@@ -583,6 +574,33 @@ async function agregarAlCarrito(id, cantidad = 1) {
     } finally {
       inFlightAdds.delete(id);
     }
+  }
+}
+
+// Helper para descontar/agregar stock
+async function descontarStock(id, cantidad) {
+  if (HAS_FIREBASE_SDK && db && typeof db.ref === 'function') {
+    const key = getDbKeyFromId(id);
+    const productRef = db.ref(`productos/${key}/stock`);
+    
+    const { committed } = await productRef.transaction((stock) => {
+      stock = stock || 0;
+      const nuevo = stock + cantidad;
+      if (nuevo < 0) return;
+      return nuevo;
+    });
+    return committed;
+  } else {
+    const key = getDbKeyFromId(id);
+    const resp = await fetch(`${FIREBASE_URL}productos/${key}/stock.json`);
+    const stockActual = await resp.json();
+    const nuevoStock = Math.max(0, (parseInt(stockActual) || 0) + cantidad);
+    const updateResp = await fetch(`${FIREBASE_URL}productos/${key}/stock.json`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(nuevoStock)
+    });
+    return updateResp.ok;
   }
 }
 
@@ -670,33 +688,6 @@ function renderizarCarrito() {
       }
     };
   });
-}
-
-// Helper para descontar/agregar stock
-async function descontarStock(id, cantidad) {
-  if (db && typeof db.ref === 'function') {
-    const key = getDbKeyFromId(id);
-    const productRef = db.ref(`productos/${key}/stock`);
-    
-    const { committed } = await productRef.transaction((stock) => {
-      stock = stock || 0;
-      const nuevo = stock + cantidad;
-      if (nuevo < 0) return;
-      return nuevo;
-    });
-    return committed;
-  } else {
-    const key = getDbKeyFromId(id);
-    const resp = await fetch(`${FIREBASE_URL}productos/${key}/stock.json`);
-    const stockActual = await resp.json();
-    const nuevoStock = Math.max(0, (parseInt(stockActual) || 0) + cantidad);
-    const updateResp = await fetch(`${FIREBASE_URL}productos/${key}/stock.json`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(nuevoStock)
-    });
-    return updateResp.ok;
-  }
 }
 
 // ===============================
