@@ -488,6 +488,7 @@ function abrirModalDatosCliente() { abrirCheckout(); }
 function cerrarModalDatosCliente() { cerrarCheckout(); }
 
 function renderCheckout(modal) {
+  // Calcular total CADA VEZ que se renderiza
   const total = carrito.reduce((s, i) => s + i.precio * i.cantidad, 0);
   const totalStr = total.toLocaleString('es-UY');
   const steps = ['Tu pedido', 'Pago', 'Confirmación'];
@@ -567,7 +568,7 @@ function renderCheckout(modal) {
           </div>`).join('')}
         <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0 0;">
           <span style="font-size:0.82rem;font-weight:700;color:#7a6450;">Total a transferir</span>
-          <span style="font-size:1.2rem;font-weight:800;color:#3b2a1a;">$U ${totalStr}</span>
+          <span style="font-size:1.2rem;font-weight:800;color:#2D6A4F;">$U ${totalStr}</span>
         </div>
       </div>
       <a href="https://wa.me/${WHATSAPP_NUMERO}?text=${wspMsg}" target="_blank" style="
@@ -610,6 +611,7 @@ function renderCheckout(modal) {
       ${contenido}
     </div>`;
 
+  // Eventos del paso 1 - SOLO guardar datos, NO enviar email
   if (checkoutStep === 1) {
     const nextBtn = modal.querySelector('#ck-next');
     if (nextBtn) {
@@ -626,11 +628,8 @@ function renderCheckout(modal) {
         }
         if (errorEl) errorEl.style.display = 'none';
         
+        // Solo guardar datos, NO enviar email todavía
         checkoutDatosCliente = { nombre, email, telefono, direccion };
-        nextBtn.disabled = true;
-        nextBtn.textContent = 'Procesando...';
-        
-        await confirmarPedidoConEmail(checkoutDatosCliente);
         
         checkoutStep = 2;
         renderCheckout(modal);
@@ -638,10 +637,19 @@ function renderCheckout(modal) {
     }
   }
 
+  // Eventos del paso 2 - AQUÍ se envía el email y se vacía el carrito
   if (checkoutStep === 2) {
     const nextBtn = modal.querySelector('#ck-next');
     if (nextBtn) {
-      nextBtn.addEventListener('click', () => {
+      nextBtn.addEventListener('click', async () => {
+        // Enviar email con los datos del cliente
+        await confirmarPedidoConEmail(checkoutDatosCliente);
+        
+        // Vaciar carrito SOLO después de enviar el email
+        carrito = [];
+        guardarCarrito();
+        actualizarUI();
+        
         checkoutStep = 3;
         renderCheckout(modal);
       });
