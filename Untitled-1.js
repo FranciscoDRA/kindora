@@ -464,38 +464,69 @@ async function verificarStockEnTiempoReal() {
     
     const productosActualizados = Object.values(data);
     
-    let stockOk = true;
-    let mensajeError = '';
-    
     for (const item of carrito) {
       const prodActual = productosActualizados.find(p => p.id == item.id);
       
       if (!prodActual) {
-        stockOk = false;
-        mensajeError = `❌ "${item.nombre}" ya no está disponible`;
-        break;
+        mostrarNotificacion(`❌ "${item.nombre}" ya no está disponible`, 'error');
+        await cargarProductosDesdeSheets();
+        return false;
       }
       
       const stockDisponible = parseInt(prodActual.stock) || 0;
       
       if (stockDisponible < item.cantidad) {
-        stockOk = false;
-        mensajeError = `❌ "${item.nombre}" solo tiene ${stockDisponible} unidad(es) disponible(s)`;
-        break;
+        mostrarNotificacion(`❌ "${item.nombre}" ahora está agotado`, 'error');
+        await cargarProductosDesdeSheets();
+        return false;
       }
     }
     
-    if (!stockOk) {
-      mostrarNotificacion(mensajeError, 'error');
-      await cargarProductosDesdeSheets();
-      return false;
-    }
-    
     return true;
-    
   } catch (error) {
     console.error('Error verificando stock:', error);
-    mostrarNotificacion('⚠️ No se pudo verificar el stock. Intentá nuevamente.', 'error');
+    mostrarNotificacion('⚠️ No se pudo verificar el stock', 'error');
+    return false;
+  }
+}
+
+// ===============================
+// ACTUALIZAR STOCK EN FIREBASE
+// ===============================
+async function descontarStockEnFirebase() {
+  try {
+    const resp = await fetch(FIREBASE_URL + 'productos/.json');
+    if (!resp.ok) throw new Error('No se pudo leer el stock');
+    const data = await resp.json();
+    if (!data) throw new Error('No hay datos de stock');
+    
+    const productosActuales = Object.entries(data);
+    const updates = {};
+
+    for (const item of carrito) {
+      const entrada = productosActuales.find(([, p]) => p.id == item.id);
+      if (!entrada) continue;
+      
+      const [key, prod] = entrada;
+      const stockActual = parseInt(prod.stock) || 0;
+      const nuevoStock = Math.max(0, stockActual - item.cantidad);
+      updates[`productos/${key}/stock`] = nuevoStock;
+    }
+
+    if (Object.keys(updates).length === 0) return true;
+
+    const patch = await fetch(FIREBASE_URL + '.json', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updates)
+    });
+
+    if (!patch.ok) throw new Error('Error al actualizar el stock');
+    
+    await cargarProductosDesdeSheets();
+    return true;
+  } catch (error) {
+    console.error('Error descontando stock:', error);
     return false;
   }
 }
@@ -694,19 +725,27 @@ function renderCheckout(modal) {
         const textoOriginal = newBtn.textContent;
         newBtn.textContent = '🔍 Verificando stock...';
         newBtn.disabled = true;
-        
+
         const stockValido = await verificarStockEnTiempoReal();
-        
         if (!stockValido) {
           newBtn.textContent = textoOriginal;
           newBtn.disabled = false;
           cerrarCheckout();
           return;
         }
-        
+
+        newBtn.textContent = '📦 Registrando pedido...';
+        const stockDescontado = await descontarStockEnFirebase();
+        if (!stockDescontado) {
+          mostrarNotificacion('Error al procesar el pedido. Intentá de nuevo.', 'error');
+          newBtn.textContent = textoOriginal;
+          newBtn.disabled = false;
+          return;
+        }
+
         newBtn.textContent = '📧 Confirmando pedido...';
         await confirmarPedidoConEmail(checkoutDatosCliente);
-        
+
         carrito = [];
         guardarCarrito();
         actualizarUI();
@@ -928,6 +967,12 @@ function init() {
   cargarProductosDesdeSheets();
   inicializarEventos();
   initShowcaseCarousel();
+  
+  // ✅ ACTUALIZAR PRODUCTOS CADA 30 SEGUNDOS (sincronización entre usuarios)
+  setInterval(async () => {
+    await cargarProductosDesdeSheets();
+    console.log('🔄 Productos actualizados automáticamente');
+  }, 30000);
   
   if (window.emailjs) {
     emailjs.init(EMAILJS_PUBLIC_KEY);
