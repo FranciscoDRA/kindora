@@ -235,15 +235,18 @@ function mostrarModalProducto(p) {
   modalAbierto = true;
   const enCarrito = carrito.find(i => i.id === p.id);
   const disp = p.stock - (enCarrito?.cantidad || 0);
+  
+  // Generar HTML del carrusel
   let carruselHtml = '';
   if (p.imagenes.length > 0) {
-    carruselHtml += `<img src="${p.imagenes[0] || PLACEHOLDER_IMAGE}" class="modal-img" id="modal-img-principal" alt="${p.nombre}" loading="lazy" onerror="this.src='${PLACEHOLDER_IMAGE}'">`;
+    carruselHtml += `<img src="${p.imagenes[0] || PLACEHOLDER_IMAGE}" class="modal-img-principal" alt="${p.nombre}" loading="lazy" onerror="this.src='${PLACEHOLDER_IMAGE}'">`;
     if (p.imagenes.length > 1) {
       carruselHtml += `<div class="modal-thumbnails">${p.imagenes.map((img, i) => `<img src="${img || PLACEHOLDER_IMAGE}" class="modal-thumbnail${i === 0 ? ' active' : ''}" alt="Miniatura ${i + 1}" data-index="${i}" onerror="this.src='${PLACEHOLDER_IMAGE}'">`).join('')}</div>`;
     }
   } else {
-    carruselHtml += `<img src="${PLACEHOLDER_IMAGE}" class="modal-img" id="modal-img-principal" alt="${p.nombre}" loading="lazy">`;
+    carruselHtml += `<img src="${PLACEHOLDER_IMAGE}" class="modal-img-principal" alt="${p.nombre}" loading="lazy">`;
   }
+  
   modalContenido.innerHTML = `
     <button class="cerrar-modal" aria-label="Cerrar modal">&times;</button>
     <div class="modal-flex">
@@ -261,8 +264,10 @@ function mostrarModalProducto(p) {
       </div>
     </div>
   `;
+  
+  // Evento de thumbnails
   if (p.imagenes.length > 1) {
-    const mainImg = modalContenido.querySelector('#modal-img-principal');
+    const mainImg = modalContenido.querySelector('.modal-img-principal');
     modalContenido.querySelectorAll('.modal-thumbnail').forEach((thumb, i) => {
       thumb.addEventListener('click', () => {
         modalContenido.querySelectorAll('.modal-thumbnail').forEach(t => t.classList.remove('active'));
@@ -271,12 +276,16 @@ function mostrarModalProducto(p) {
       });
     });
   }
+  
+  // Cerrar modal
   const cerrarBtn = modalContenido.querySelector('.cerrar-modal');
   cerrarBtn?.addEventListener('click', () => {
     modal.style.display = 'none';
     document.body.classList.remove('no-scroll');
     modalAbierto = false;
   });
+  
+  // Agregar al carrito
   const agregarBtn = modalContenido.querySelector('.boton-agregar-modal');
   agregarBtn?.addEventListener('click', () => {
     const cantidad = +modalContenido.querySelector('.cantidad-modal-input').value || 1;
@@ -285,8 +294,11 @@ function mostrarModalProducto(p) {
     document.body.classList.remove('no-scroll');
     modalAbierto = false;
   });
+  
   modal.style.display = 'flex';
   document.body.classList.add('no-scroll');
+  
+  // Cerrar al hacer clic fuera
   modal.addEventListener('click', (e) => {
     if (e.target === modal) {
       modal.style.display = 'none';
