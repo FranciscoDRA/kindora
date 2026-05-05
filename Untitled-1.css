@@ -1373,46 +1373,203 @@ footer {
 }
 
 
-/* ── PRODUCTO CARD — FOTO MÁS GRANDE ── */
-.producto-img {
-  width: 100%;
-  aspect-ratio: 3/4;      /* antes era 4/3, ahora más vertical */
-  object-fit: cover;
-  display: block;
-  background: var(--cream-dark);
-  transition: transform 0.5s ease;
+/* ══════════════════════════════════════
+   HERO PREMIUM — KINDORA
+   ══════════════════════════════════════ */
+
+.hero {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: stretch;
+  padding-top: 0;
+  gap: 0;
 }
 
-.producto-card:hover .producto-img { 
-  transform: scale(1.03); /* más sutil */
-}
-
-/* Que la info debajo sea más compacta para dar más espacio a la foto */
-.producto-card > div:not(.card-acciones) { 
-  padding: 14px 20px; 
-  flex: 1; 
-}
-
-.producto-nombre { 
-  font-size: 15px; 
-  margin-bottom: 4px; 
-}
-
-.producto-precio { 
-  font-size: 18px; 
-  margin-bottom: 2px; 
-}
-
-.producto-stock { 
-  font-size: 11px; 
-  margin-bottom: 0; 
-}
-
-.card-acciones {
-  padding: 12px 20px 18px;
-  border-top: 0.5px solid rgba(212, 163, 115, 0.2);
-  padding-top: 12px;
+/* Panel izquierdo: texto centrado verticalmente */
+.hero-left {
   display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 120px 64px 80px 80px;
+  max-width: none;
+  animation: fadeUp 1s ease both;
+}
+
+/* Panel derecho: la imagen llena TODO el panel */
+.hero-right {
+  position: relative;
+  overflow: hidden;
+  background: var(--cream-dark);
+  padding: 0;
+  animation: none;
+}
+
+/* El carousel ocupa todo el panel */
+.showcase-carousel {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 8px;
+  justify-content: flex-end;
+}
+
+.showcase-glow { display: none; }
+.showcase-brackets { display: none; }
+
+/* Stage ocupa todo el panel */
+.showcase-stage {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  perspective: none;
+}
+
+/* La card activa ocupa todo el panel */
+.showcase-card[data-state="active"] {
+  position: absolute;
+  inset: 0;
+  width: 100% !important;
+  height: 100% !important;
+  top: 0 !important;
+  left: 0 !important;
+  transform: none !important;
+  box-shadow: none !important;
+  border: none !important;
+  border-radius: 0 !important;
+  z-index: 3;
+}
+
+.showcase-card[data-state="active"] img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Ocultar las cartas de los lados */
+.showcase-card[data-state="prev"],
+.showcase-card[data-state="next"],
+.showcase-card[data-state="far-left"],
+.showcase-card[data-state="far-right"] {
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+/* Gradiente inferior sobre la imagen para el texto del producto */
+.hero-right::after {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 45%;
+  background: linear-gradient(to top, rgba(30,15,5,0.72) 0%, transparent 100%);
+  z-index: 4;
+  pointer-events: none;
+}
+
+/* Info del producto sobre la imagen */
+.showcase-info {
+  position: absolute;
+  bottom: 56px;
+  left: 0; right: 0;
+  width: 100% !important;
+  text-align: center;
+  z-index: 5;
+  margin: 0;
+}
+
+.sc-counter, .sc-categoria {
+  color: rgba(249,244,238,0.65) !important;
+  font-size: 10px;
+  letter-spacing: 3px;
+}
+
+.sc-name {
+  color: #F9F4EE !important;
+  font-size: 28px !important;
+  text-shadow: 0 2px 20px rgba(30,15,5,0.3);
+}
+
+.sc-price {
+  color: var(--sepia) !important;
+  font-size: 15px !important;
+}
+
+.sc-link { color: rgba(249,244,238,0.8) !important; }
+.sc-link:hover { color: var(--sepia) !important; }
+.sc-line { background: currentColor; }
+
+/* Progress bar sobre la imagen */
+.sc-progress-wrap {
+  position: absolute;
+  bottom: 0; left: 0;
+  width: 100% !important;
+  height: 2px !important;
+  z-index: 6;
+  background: rgba(212,163,115,0.2);
+  margin: 0;
+}
+
+/* Navegación */
+.sc-nav {
+  position: absolute;
+  bottom: 20px;
+  right: 32px;
+  z-index: 6;
+  margin: 0;
+}
+
+.sc-nav-btn {
+  border-color: rgba(249,244,238,0.4);
+  color: rgba(249,244,238,0.8);
+  border-radius: 50%;
+}
+.sc-nav-btn:hover {
+  background: rgba(212,163,115,0.8);
+  border-color: transparent;
+}
+
+.sc-dots { display: none; } /* limpio, ya tenés progress bar */
+
+/* Hover sutil sobre la imagen */
+.showcase-card[data-state="active"]:hover img {
+  transform: scale(1.03);
+  transition: transform 6s ease;
+}
+
+/* Línea decorativa izquierda */
+.hero-left::before {
+  content: '';
+  position: absolute;
+  left: 40px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 0.5px;
+  height: 120px;
+  background: linear-gradient(to bottom, transparent, var(--sepia), transparent);
+  opacity: 0.4;
+}
+.hero-left { position: relative; }
+
+/* Responsive */
+@media (max-width: 900px) {
+  .hero {
+    grid-template-columns: 1fr;
+    min-height: auto;
+  }
+  .hero-left {
+    padding: 100px 32px 48px;
+    text-align: center;
+  }
+  .hero-left::before { display: none; }
+  .hero-right {
+    height: 70vw;
+    min-height: 420px;
+    position: relative;
+  }
+  .showcase-carousel,
+  .showcase-stage { position: absolute; }
 }
