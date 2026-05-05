@@ -1151,42 +1151,49 @@ function inicializarEventos() {
 // ===============================
 async function descontarStockEnFirebase() {
   try {
-    // Leer stock actual desde Firebase
-    const resp = await fetch(FIREBASE_URL + 'productos/.json');
+    console.log('📦 Iniciando descuento de stock...');
+    
+    // 1. Leer stock actual
+    const resp = await fetch(FIREBASE_URL + 'productos.json');
     if (!resp.ok) throw new Error('No se pudo leer el stock');
     const data = await resp.json();
-    if (!data) throw new Error('No hay datos de stock');
+    if (!data) throw new Error('No hay datos');
     
-    const productosActuales = Object.entries(data); // [[key, producto], ...]
+    // 2. Calcular nuevos stocks
     const updates = {};
-
     for (const item of carrito) {
-      const entrada = productosActuales.find(([, p]) => p.id == item.id);
-      if (!entrada) continue;
+      // Buscar producto por ID
+      const [key, prod] = Object.entries(data).find(([, p]) => p.id == item.id);
+      if (!key) {
+        console.warn(`Producto ${item.id} no encontrado`);
+        continue;
+      }
       
-      const [key, prod] = entrada;
       const stockActual = parseInt(prod.stock) || 0;
       const nuevoStock = Math.max(0, stockActual - item.cantidad);
       updates[`productos/${key}/stock`] = nuevoStock;
+      console.log(`📉 ${prod.nombre}: ${stockActual} → ${nuevoStock}`);
     }
-
-    if (Object.keys(updates).length === 0) return true;
-
-    // Actualizar Firebase con PATCH
-    const patch = await fetch(FIREBASE_URL + '.json', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(updates)
-    });
-
-    if (!patch.ok) throw new Error('Error al actualizar el stock');
     
-    // ✅ IMPORTANTE: Recargar productos para actualizar vista de TODOS los usuarios
-    await cargarProductosDesdeSheets();
+    // 3. Enviar actualización a Firebase
+    if (Object.keys(updates).length > 0) {
+      const patchResp = await fetch(FIREBASE_URL + '.json', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updates)
+      });
+      
+      if (!patchResp.ok) throw new Error('Error al actualizar');
+      console.log('✅ Stock actualizado en Firebase', updates);
+      
+      // 4. Recargar productos localmente para que el usuario vea el cambio
+      await cargarProductosDesdeSheets();
+      return true;
+    }
     
     return true;
   } catch (error) {
-    console.error('Error descontando stock:', error);
+    console.error('❌ Error en descontarStockEnFirebase:', error);
     return false;
   }
 }
