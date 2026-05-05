@@ -391,6 +391,14 @@ async function enviarCorreoContacto(formData) {
 
 async function enviarCorreoCompra(datosCompra) {
   try {
+    const productosHtml = datosCompra.productos
+      .map(p => `
+        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #eee;">
+          <span>${p.nombre} x${p.cantidad}</span>
+          <strong>$U ${(p.precio * p.cantidad).toLocaleString('es-UY')}</strong>
+        </div>`)
+      .join('');
+
     const templateParams = {
       order_id:       datosCompra.orderId,
       order_date:     new Date().toLocaleString('es-UY'),
@@ -400,12 +408,9 @@ async function enviarCorreoCompra(datosCompra) {
       client_email:   datosCompra.cliente.email,
       client_phone:   datosCompra.cliente.telefono  || '—',
       client_address: datosCompra.cliente.direccion || '—',
-      products:       datosCompra.productos.map(p => ({
-        name:     p.nombre,
-        quantity: p.cantidad,
-        subtotal: (p.precio * p.cantidad).toLocaleString('es-UY')
-      })),
+      products:       productosHtml,
     };
+
     await emailjs.send(EMAILJS_SERVICE_ID, TEMPLATE_COMPRA, templateParams);
     return { success: true };
   } catch (error) {
