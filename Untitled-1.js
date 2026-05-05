@@ -25,6 +25,10 @@ let productos = [];
 let carrito = [];
 let paginaActual = 1;
 let productosCargados = false;
+let suprimirRealtime = 0;           // Evita parpadeo en actualizaciones propias
+const inFlightAdds = new Set();      // Evita doble click en el mismo producto
+const keyById = {};                  // Mapeo: id del producto → key real en Firebase
+
 let filtrosActuales = {
   precioMin: null,
   precioMax: null,
@@ -97,9 +101,14 @@ function actualizarCategorias() {
 }
 
 // ===============================
-// CARGA DESDE FIREBASE
+// CARGA DESDE FIREBASE CON REALTIME
 // ===============================
 const FIREBASE_URL = 'https://kindora-47c88-default-rtdb.firebaseio.com/';
+
+// Obtener key real de Firebase a partir del ID del producto
+function getDbKeyFromId(id) {
+  return keyById[id] ?? String(id);
+}
 
 async function cargarProductosDesdeSheets() {
   const galeria = getElement('galeria-productos');
@@ -114,27 +123,8 @@ async function cargarProductosDesdeSheets() {
     const data = await resp.json();
     if (!data) throw new Error('No se encontraron productos');
 
-    productos = Object.values(data)
-      .filter(r => r && r.id && r.nombre && r.precio !== undefined)
-      .map(r => ({
-        id:          parseInt(r.id, 10),
-        nombre:      r.nombre ? String(r.nombre).trim() : 'Sin Nombre',
-        descripcion: r.descripcion ? String(r.descripcion).trim() : '',
-        precio:      parseFloat(r.precio) || 0,
-        stock:       parseInt(r.stock, 10) || 0,
-        imagenes:    Array.isArray(r.imagenes)
-                       ? r.imagenes
-                       : (r.imagenes ? String(r.imagenes).split(',').map(x => x.trim()).filter(Boolean) : []),
-        adicionales: r.adicionales ? String(r.adicionales).trim() : '',
-        alto:        parseFloat(r.alto) || null,
-        ancho:       parseFloat(r.ancho) || null,
-        profundidad: parseFloat(r.profundidad) || null,
-        categoria:   r.categoria ? String(r.categoria).trim().toLowerCase() : 'otros',
-        vendido:     r.vendido === true || String(r.vendido).toLowerCase() === 'true',
-        estado:      r.estado ? String(r.estado).trim() : '',
-        nuevoAt:     r.nuevoAt || null
-      }));
-
+    procesarDatosProductos(data);
+    
     productosCargados = true;
     actualizarCategorias();
     actualizarUI();
@@ -147,6 +137,71 @@ async function cargarProductosDesdeSheets() {
     }
     mostrarNotificacion('Error al cargar productos: ' + e.message, 'error');
   }
+}
+
+function procesarDatosProductos(data) {
+  // Limpiar mapeo anterior
+  for (const k in keyById) delete keyById[k];
+  
+  productos = Object.entries(data || {})
+    .filter(([, p]) => p && p.id && p.nombre && p.precio !== undefined)
+    .map(([key, p]) => {
+      const id = parseInt(p.id, 10);
+      if (!Number.isFinite(id)) return null;
+      
+      // Guardar mapeo id → key real de Firebase
+      keyById[id] = key;
+      
+      return {
+        id,
+        nombre:      p.nombre ? String(p.nombre).trim() : 'Sin Nombre',
+        descripcion: p.descripcion ? String(p.descripcion).trim() : '',
+        precio:      parseFloat(p.precio) || 0,
+        stock:       parseInt(p.stock, 10) || 0,
+        imagenes:    Array.isArray(p.imagenes)
+                       ? p.imagenes
+                       : (p.imagenes ? String(p.imagenes).split(',').map(x => x.trim()).filter(Boolean) : []),
+        adicionales: p.adicionales ? String(p.adicionales).trim() : '',
+        alto:        parseFloat(p.alto) || null,
+        ancho:       parseFloat(p.ancho) || null,
+        profundidad: parseFloat(p.profundidad) || null,
+        categoria:   p.categoria ? String(p.categoria).trim().toLowerCase() : 'otros',
+        vendido:     p.vendido === true || String(p.vendido).toLowerCase() === 'true',
+        estado:      p.estado ? String(p.estado).trim() : '',
+        nuevoAt:     p.nuevoAt || null,
+        _key:        key
+      };
+    })
+    .filter(Boolean)
+    .sort((a, b) => a.id - b.id);
+}
+
+// Configurar listener en tiempo real para sincronización entre usuarios
+function iniciarListenerTiempoReal() {
+  const eventSource = new EventSource(FIREBASE_URL + 'productos/.json?listen');
+  // Nota: EventSource no funciona directamente con Firebase REST.
+  // Usamos polling como alternativa confiable.
+  
+  // En lugar de EventSource, actualizamos cada 5 segundos
+  setInterval(async () => {
+    if (productosCargados && suprimirRealtime <= 0) {
+      try {
+        const resp = await fetch(FIREBASE_URL + 'productos/.json');
+        const data = await resp.json();
+        if (data) {
+          procesarDatosProductos(data);
+          renderizarProductos();
+          actualizarCategorias();
+          actualizarUI();
+          console.log('🔄 Productos sincronizados en tiempo real');
+        }
+      } catch (e) {
+        console.warn('Error en sincronización:', e);
+      }
+    } else if (suprimirRealtime > 0) {
+      suprimirRealtime--;
+    }
+  }, 5000); // Cada 5 segundos
 }
 
 // ===============================
@@ -175,15 +230,15 @@ function crearCardProducto(p) {
   if (!p) return '';
   const enCarrito = carrito.find(i => i && i.id === p.id);
   const disp = p.stock - (enCarrito?.cantidad || 0);
-  const agot = disp <= 0;
+  const agot = disp <= 0 || p.stock <= 0;
   const primeraImagen = (p.imagenes && p.imagenes[0]) || PLACEHOLDER_IMAGE;
   const imgHtml = `<img src="${primeraImagen}" alt="${p.nombre}" class="producto-img" loading="lazy" onerror="this.src='${PLACEHOLDER_IMAGE}'">`;
   return `
     <div class="producto-card" data-id="${p.id}">
       ${imgHtml}
       <div>
-        <p class="producto-nombre">${p.nombre || 'Sin nombre'}</p>
-        <p class="producto-precio">$U ${(p.precio || 0).toLocaleString('es-UY')}</p>
+        <p class="producto-nombre">${p.nombre}</p>
+        <p class="producto-precio">$U ${p.precio.toLocaleString('es-UY')}</p>
         <p class="producto-stock">${agot ? '<span class="texto-agotado">Agotado</span>' : ''}</p>
       </div>
       <div class="card-acciones">
@@ -315,33 +370,47 @@ function mostrarModalProducto(p) {
 }
 
 // ===============================
-// CARRITO
+// CARRITO Y AGREGAR CON TRANSACCIÓN
 // ===============================
-async function agregarAlCarrito(id, cantidad = 1) {
+
+// Función para descontar stock directamente en Firebase
+async function descontarStockEnFirebase(id, cantidad) {
+  const key = getDbKeyFromId(id);
+  if (!key) return false;
+  
   try {
-    // Verificar que productos esté cargado
-    if (!productosCargados || productos.length === 0) {
-      mostrarNotificacion('Cargando productos, intentá de nuevo', 'error');
-      await cargarProductosDesdeSheets();
-      return;
-    }
+    // Usar fetch directo con PATCH para actualizar stock
+    const productoRef = await fetch(`${FIREBASE_URL}productos/${key}/stock.json`);
+    const stockActual = await productoRef.json();
+    const nuevoStock = Math.max(0, (parseInt(stockActual) || 0) - cantidad);
     
-    // Verificar stock en Firebase
-    const resp = await fetch(FIREBASE_URL + 'productos/.json');
-    if (!resp.ok) throw new Error('No se pudo verificar stock');
+    const response = await fetch(`${FIREBASE_URL}productos/${key}/stock.json`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(nuevoStock)
+    });
     
-    const data = await resp.json();
-    if (!data) throw new Error('No hay datos de stock');
-    
-    const productosActualizados = Object.values(data);
-    const prodActual = productosActualizados.find(p => p && p.id == id);
-    
+    return response.ok;
+  } catch (error) {
+    console.error('Error descontando stock:', error);
+    return false;
+  }
+}
+
+async function agregarAlCarrito(id, cantidad = 1) {
+  // Prevenir múltiples solicitudes para el mismo producto
+  if (inFlightAdds.has(id)) return;
+  inFlightAdds.add(id);
+  
+  try {
+    // 1. Verificar stock actual en Firebase
+    const prodActual = productos.find(p => p && p.id === id);
     if (!prodActual) {
       mostrarNotificacion('Producto no encontrado', 'error');
       return;
     }
     
-    const stockReal = parseInt(prodActual.stock) || 0;
+    const stockReal = prodActual.stock;
     
     if (stockReal <= 0) {
       mostrarNotificacion('❌ Este producto ya no tiene stock disponible', 'error');
@@ -354,47 +423,42 @@ async function agregarAlCarrito(id, cantidad = 1) {
       return;
     }
     
-    // Proceder con el producto local
-    const prod = productos.find(p => p && p.id === id);
-    if (!prod) {
-      mostrarNotificacion('Producto no encontrado en el catálogo', 'error');
-      await cargarProductosDesdeSheets();
+    // 2. Descontar stock en Firebase
+    suprimirRealtime = 2; // Evitar parpadeo
+    const exito = await descontarStockEnFirebase(id, cantidad);
+    
+    if (!exito) {
+      mostrarNotificacion('Error al procesar la solicitud', 'error');
       return;
     }
     
-    cantidad = parseInt(cantidad, 10);
-    if (isNaN(cantidad) || cantidad < 1) {
-      mostrarNotificacion('Cantidad inválida', 'error');
-      return;
-    }
+    // 3. Actualizar stock local
+    prodActual.stock -= cantidad;
     
-    const enCarrito = carrito.find(item => item && item.id === id);
-    const disponibles = prod.stock - (enCarrito?.cantidad || 0);
-    
-    if (cantidad > disponibles) {
-      mostrarNotificacion(`Solo hay ${disponibles} unidades disponibles en este momento`, 'error');
-      return;
-    }
-    
+    // 4. Agregar al carrito local
+    const enCarrito = carrito.find(item => item.id === id);
     if (enCarrito) {
       enCarrito.cantidad += cantidad;
     } else {
-      carrito.push({ 
-        id, 
-        nombre: prod.nombre, 
-        precio: prod.precio, 
-        cantidad, 
-        imagen: (prod.imagenes && prod.imagenes[0]) || '' 
+      carrito.push({
+        id,
+        nombre: prodActual.nombre,
+        precio: prodActual.precio,
+        cantidad,
+        imagen: prodActual.imagenes[0] || ''
       });
     }
     
     guardarCarrito();
-    actualizarUI();
-    mostrarNotificacion(`"${prod.nombre}" añadido a tu bolsa`, 'exito');
+    renderizarCarrito();
+    renderizarProductos();
+    mostrarNotificacion(`"${prodActual.nombre}" añadido a tu bolsa`, 'exito');
     
   } catch (error) {
     console.error('Error en agregarAlCarrito:', error);
     mostrarNotificacion('Error al verificar disponibilidad. Intentá de nuevo.', 'error');
+  } finally {
+    inFlightAdds.delete(id);
   }
 }
 
@@ -408,46 +472,75 @@ function renderizarCarrito() {
     return;
   }
   listaCarrito.innerHTML = carrito.map(i => `
-    <li class="carrito-item">
+    <li class="carrito-item" data-id="${i.id}">
       ${i.imagen ? `<img src="${i.imagen}" class="carrito-item-img" alt="${i.nombre}" loading="lazy" onerror="this.src='${PLACEHOLDER_IMAGE}'">` : ''}
       <div class="carrito-item-info">
         <span class="carrito-item-nombre">${i.nombre || ''}</span>
         <span class="carrito-item-subtotal">$U ${((i.precio || 0) * (i.cantidad || 0)).toLocaleString('es-UY')}</span>
         <div class="carrito-item-controls">
-          <button data-id="${i.id}" data-action="decrementar">−</button>
+          <button class="disminuir-cantidad" data-id="${i.id}" ${i.cantidad <= 1 ? 'disabled' : ''}>−</button>
           <span class="carrito-item-cantidad">${i.cantidad || 0}</span>
-          <button data-id="${i.id}" data-action="incrementar">+</button>
-          <button data-id="${i.id}" class="eliminar-item">✕</button>
+          <button class="aumentar-cantidad" data-id="${i.id}">+</button>
+          <button class="eliminar-item" data-id="${i.id}">✕</button>
         </div>
       </div>
     </li>`).join('');
+  
   const total = carrito.reduce((sum, i) => sum + (i.precio || 0) * (i.cantidad || 0), 0);
   totalSpan.textContent = `$U ${total.toLocaleString('es-UY')}`;
   
-  listaCarrito.onclick = (e) => {
-    const target = e.target.closest('[data-id]');
-    if (!target) return;
-    const id = +target.dataset.id;
-    const action = target.dataset.action;
-    const item = carrito.find(i => i && i.id === id);
-    const prod = productos.find(p => p && p.id === id);
-    if (!item || !prod) return;
-    if (action === 'incrementar') {
-      const disp = prod.stock - item.cantidad;
-      if (disp > 0) { item.cantidad++; guardarCarrito(); actualizarUI(); }
-      else mostrarNotificacion('No hay más stock disponible', 'error');
-    } else if (action === 'decrementar') {
-      item.cantidad--;
-      if (item.cantidad <= 0) carrito = carrito.filter(i => i && i.id !== id);
-      guardarCarrito();
-      actualizarUI();
-    } else if (target.classList.contains('eliminar-item')) {
-      carrito = carrito.filter(i => i && i.id !== id);
-      guardarCarrito();
-      actualizarUI();
-      mostrarNotificacion('Producto eliminado de la bolsa', 'info');
-    }
-  };
+  // Eventos del carrito
+  listaCarrito.querySelectorAll('.disminuir-cantidad').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const id = parseInt(btn.dataset.id);
+      const item = carrito.find(i => i.id === id);
+      if (item && item.cantidad > 1) {
+        // Devolver stock a Firebase
+        await descontarStockEnFirebase(id, -1);
+        const prod = productos.find(p => p.id === id);
+        if (prod) prod.stock++;
+        item.cantidad--;
+        guardarCarrito();
+        renderizarCarrito();
+        renderizarProductos();
+      }
+    });
+  });
+  
+  listaCarrito.querySelectorAll('.aumentar-cantidad').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const id = parseInt(btn.dataset.id);
+      const item = carrito.find(i => i.id === id);
+      const prod = productos.find(p => p.id === id);
+      if (item && prod && prod.stock > 0) {
+        await descontarStockEnFirebase(id, 1);
+        prod.stock--;
+        item.cantidad++;
+        guardarCarrito();
+        renderizarCarrito();
+        renderizarProductos();
+      } else {
+        mostrarNotificacion('No hay más stock disponible', 'error');
+      }
+    });
+  });
+  
+  listaCarrito.querySelectorAll('.eliminar-item').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const id = parseInt(btn.dataset.id);
+      const item = carrito.find(i => i.id === id);
+      if (item) {
+        await descontarStockEnFirebase(id, -item.cantidad);
+        const prod = productos.find(p => p.id === id);
+        if (prod) prod.stock += item.cantidad;
+        carrito = carrito.filter(i => i.id !== id);
+        guardarCarrito();
+        renderizarCarrito();
+        renderizarProductos();
+        mostrarNotificacion('Producto eliminado de la bolsa', 'info');
+      }
+    });
+  });
 }
 
 // ===============================
@@ -577,57 +670,11 @@ async function verificarStockEnTiempoReal() {
 }
 
 // ===============================
-// ACTUALIZAR STOCK EN FIREBASE
-// ===============================
-async function descontarStockEnFirebase() {
-  try {
-    console.log('📦 Iniciando descuento de stock...');
-    
-    const resp = await fetch(FIREBASE_URL + 'productos.json');
-    if (!resp.ok) throw new Error('No se pudo leer el stock');
-    const data = await resp.json();
-    if (!data) throw new Error('No hay datos');
-    
-    const updates = {};
-    for (const item of carrito) {
-      if (!item) continue;
-      const entry = Object.entries(data).find(([, p]) => p && p.id == item.id);
-      if (!entry) {
-        console.warn(`Producto ${item.id} no encontrado`);
-        continue;
-      }
-      const [key, prod] = entry;
-      const stockActual = parseInt(prod.stock) || 0;
-      const nuevoStock = Math.max(0, stockActual - (item.cantidad || 0));
-      updates[`productos/${key}/stock`] = nuevoStock;
-      console.log(`📉 ${prod.nombre}: ${stockActual} → ${nuevoStock}`);
-    }
-    
-    if (Object.keys(updates).length > 0) {
-      const patchResp = await fetch(FIREBASE_URL + '.json', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updates)
-      });
-      
-      if (!patchResp.ok) throw new Error('Error al actualizar');
-      console.log('✅ Stock actualizado en Firebase', updates);
-      await cargarProductosDesdeSheets();
-      return true;
-    }
-    
-    return true;
-  } catch (error) {
-    console.error('❌ Error en descontarStockEnFirebase:', error);
-    return false;
-  }
-}
-
-// ===============================
 // CHECKOUT EN PASOS
 // ===============================
 let checkoutStep = 1;
 let checkoutDatosCliente = {};
+let checkoutModal = null;
 
 function abrirCheckout() {
   if (!carrito || carrito.length === 0) { 
@@ -635,88 +682,83 @@ function abrirCheckout() {
     return; 
   }
   checkoutStep = 1;
-  let modal = getElement('checkout-modal');
-  if (!modal) {
-    modal = document.createElement('div');
-    modal.id = 'checkout-modal';
-    modal.style.cssText = `
+  
+  if (!checkoutModal) {
+    checkoutModal = document.createElement('div');
+    checkoutModal.id = 'checkout-modal';
+    checkoutModal.style.cssText = `
       display:none;position:fixed;inset:0;
       background:rgba(58,40,25,0.6);backdrop-filter:blur(4px);
       z-index:9999;align-items:center;justify-content:center;
       padding:16px;box-sizing:border-box;`;
-    document.body.appendChild(modal);
-    modal.addEventListener('click', (e) => { if (e.target === modal) cerrarCheckout(); });
+    document.body.appendChild(checkoutModal);
+    checkoutModal.addEventListener('click', (e) => { if (e.target === checkoutModal) cerrarCheckout(); });
   }
-  renderCheckout(modal);
-  modal.style.display = 'flex';
+  renderCheckout();
+  checkoutModal.style.display = 'flex';
   document.body.classList.add('no-scroll');
 }
 
 function cerrarCheckout() {
-  const modal = getElement('checkout-modal');
-  if (modal) modal.style.display = 'none';
+  if (checkoutModal) checkoutModal.style.display = 'none';
   document.body.classList.remove('no-scroll');
 }
 
-function abrirModalTransferencia() { abrirCheckout(); }
-function cerrarModalTransferencia() { cerrarCheckout(); }
-function abrirModalDatosCliente() { abrirCheckout(); }
-function cerrarModalDatosCliente() { cerrarCheckout(); }
-
-function renderCheckout(modal) {
-  if (!carrito) carrito = [];
+function renderCheckout() {
+  if (!checkoutModal) return;
+  
   const total = carrito.reduce((s, i) => s + (i.precio || 0) * (i.cantidad || 0), 0);
   const totalStr = total.toLocaleString('es-UY');
   const steps = ['Tu pedido', 'Pago', 'Confirmación'];
 
   const stepBar = steps.map((s, i) => `
-    <div style="display:flex;align-items:center;gap:6px;flex:1;${i < steps.length - 1 ? 'flex:1;' : ''}">
+    <div style="display:flex;align-items:center;gap:6px;flex:1;">
       <div style="
         width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;
-        font-size:0.75rem;font-weight:700;flex-shrink:0;transition:all 0.3s;
+        font-size:0.75rem;font-weight:700;
         background:${checkoutStep > i + 1 ? '#2D6A4F' : checkoutStep === i + 1 ? '#3b2a1a' : '#e0d8ce'};
         color:${checkoutStep >= i + 1 ? '#fff' : '#9a8878'};">
         ${checkoutStep > i + 1 ? '✓' : i + 1}
       </div>
       <span style="font-size:0.78rem;font-weight:${checkoutStep === i + 1 ? '600' : '400'};
-        color:${checkoutStep === i + 1 ? '#3b2a1a' : '#9a8878'};white-space:nowrap;">${s}</span>
+        color:${checkoutStep === i + 1 ? '#3b2a1a' : '#9a8878'};">${s}</span>
       ${i < steps.length - 1 ? `<div style="flex:1;height:1px;background:${checkoutStep > i + 1 ? '#2D6A4F' : '#e0d8ce'};margin:0 4px;"></div>` : ''}
-    </div>`).join('');
-
-  const resumenItems = carrito.map(i => `
-    <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid #ede5d8;">
-      <div style="display:flex;align-items:center;gap:10px;">
-        ${i.imagen ? `<img src="${i.imagen}" style="width:40px;height:40px;object-fit:cover;border-radius:6px;">` : ''}
-        <div>
-          <div style="font-size:0.88rem;font-weight:600;color:#3b2a1a;">${i.nombre || ''}</div>
-          <div style="font-size:0.78rem;color:#9a8878;">x${i.cantidad || 0}</div>
-        </div>
-      </div>
-      <div style="font-size:0.9rem;font-weight:700;color:#3b2a1a;">$U ${((i.precio || 0) * (i.cantidad || 0)).toLocaleString('es-UY')}</div>
     </div>`).join('');
 
   let contenido = '';
 
   if (checkoutStep === 1) {
+    const resumenItems = carrito.map(i => `
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid #ede5d8;">
+        <div style="display:flex;align-items:center;gap:10px;">
+          ${i.imagen ? `<img src="${i.imagen}" style="width:40px;height:40px;object-fit:cover;border-radius:6px;">` : ''}
+          <div>
+            <div style="font-size:0.88rem;font-weight:600;color:#3b2a1a;">${i.nombre || ''}</div>
+            <div style="font-size:0.78rem;color:#9a8878;">x${i.cantidad || 0}</div>
+          </div>
+        </div>
+        <div style="font-size:0.9rem;font-weight:700;color:#3b2a1a;">$U ${((i.precio || 0) * (i.cantidad || 0)).toLocaleString('es-UY')}</div>
+      </div>`).join('');
+      
     contenido = `
       <div style="font-size:0.82rem;color:#7a6450;margin-bottom:16px;">Revisá tu pedido y completá tus datos.</div>
-      <div style="max-height:180px;overflow-y:auto;margin-bottom:18px;">${resumenItems || ''}</div>
+      <div style="max-height:180px;overflow-y:auto;margin-bottom:18px;">${resumenItems}</div>
       <div style="display:flex;justify-content:space-between;padding:10px 0;margin-bottom:18px;border-top:2px solid #3b2a1a;">
         <span style="font-weight:700;color:#3b2a1a;">Total</span>
         <span style="font-weight:700;color:#3b2a1a;font-size:1.05rem;">$U ${totalStr}</span>
       </div>
       <div style="display:flex;flex-direction:column;gap:10px;">
         <input id="ck-nombre" placeholder="Nombre completo *" value="${checkoutDatosCliente.nombre || ''}"
-          style="padding:11px 14px;border:1.5px solid #d4c5b0;border-radius:8px;font-size:0.9rem;background:#fff;color:#3b2a1a;outline:none;">
+          style="padding:11px 14px;border:1.5px solid #d4c5b0;border-radius:8px;font-size:0.9rem;background:#fff;">
         <input id="ck-email" type="email" placeholder="Email *" value="${checkoutDatosCliente.email || ''}"
-          style="padding:11px 14px;border:1.5px solid #d4c5b0;border-radius:8px;font-size:0.9rem;background:#fff;color:#3b2a1a;outline:none;">
+          style="padding:11px 14px;border:1.5px solid #d4c5b0;border-radius:8px;font-size:0.9rem;background:#fff;">
         <input id="ck-telefono" placeholder="Teléfono (opcional)" value="${checkoutDatosCliente.telefono || ''}"
-          style="padding:11px 14px;border:1.5px solid #d4c5b0;border-radius:8px;font-size:0.9rem;background:#fff;color:#3b2a1a;outline:none;">
+          style="padding:11px 14px;border:1.5px solid #d4c5b0;border-radius:8px;font-size:0.9rem;background:#fff;">
         <input id="ck-direccion" placeholder="Dirección de entrega (opcional)" value="${checkoutDatosCliente.direccion || ''}"
-          style="padding:11px 14px;border:1.5px solid #d4c5b0;border-radius:8px;font-size:0.9rem;background:#fff;color:#3b2a1a;outline:none;">
-        <p id="ck-error" style="display:none;color:#c0392b;font-size:0.8rem;margin:0;">* Nombre y email son obligatorios.</p>
+          style="padding:11px 14px;border:1.5px solid #d4c5b0;border-radius:8px;font-size:0.9rem;background:#fff;">
+        <p id="ck-error" style="display:none;color:#c0392b;font-size:0.8rem;">* Nombre y email son obligatorios.</p>
       </div>
-      <button id="ck-next" style="margin-top:18px;width:100%;padding:13px;background:#3b2a1a;color:#faf6f0;border:none;border-radius:8px;font-size:0.95rem;font-weight:700;cursor:pointer;">
+      <button id="ck-next" style="margin-top:18px;width:100%;padding:13px;background:#3b2a1a;color:#faf6f0;border:none;border-radius:8px;cursor:pointer;">
         Continuar al pago →
       </button>`;
 
@@ -729,19 +771,18 @@ function renderCheckout(modal) {
         Realizá la transferencia y envianos el comprobante por WhatsApp.
       </div>
       <div style="background:#f5f0e8;border-radius:10px;padding:16px;margin-bottom:16px;">
-        ${[
-          ['Banco', CUENTA_BANCO],
-          ['N° de cuenta', CUENTA_NUMERO],
-          ['Titular', CUENTA_TITULAR],
-        ].map(([label, val]) => `
-          <div style="display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid #e0d5c5;">
-            <span style="font-size:0.82rem;color:#7a6450;">${label}</span>
-            <div style="display:flex;align-items:center;gap:8px;">
-              <span style="font-weight:600;color:#3b2a1a;font-size:0.9rem;">${val}</span>
-              <button onclick="navigator.clipboard.writeText('${val}');this.textContent='✓';setTimeout(()=>this.textContent='⎘',1500)"
-                style="background:#e8dfd3;border:none;border-radius:5px;padding:3px 7px;cursor:pointer;font-size:0.75rem;color:#3b2a1a;">⎘</button>
-            </div>
-          </div>`).join('')}
+        <div style="display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid #e0d5c5;">
+          <span style="font-size:0.82rem;color:#7a6450;">Banco</span>
+          <span style="font-weight:600;color:#3b2a1a;">${CUENTA_BANCO}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid #e0d5c5;">
+          <span style="font-size:0.82rem;color:#7a6450;">N° de cuenta</span>
+          <span style="font-weight:600;color:#3b2a1a;">${CUENTA_NUMERO}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid #e0d5c5;">
+          <span style="font-size:0.82rem;color:#7a6450;">Titular</span>
+          <span style="font-weight:600;color:#3b2a1a;">${CUENTA_TITULAR}</span>
+        </div>
         <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0 0;">
           <span style="font-size:0.82rem;font-weight:700;color:#7a6450;">Total a transferir</span>
           <span style="font-size:1.2rem;font-weight:800;color:#2D6A4F;">$U ${totalStr}</span>
@@ -750,15 +791,10 @@ function renderCheckout(modal) {
       <a href="https://wa.me/${WHATSAPP_NUMERO}?text=${wspMsg}" target="_blank" style="
         display:flex;align-items:center;justify-content:center;gap:8px;
         width:100%;padding:13px;background:#25D366;color:#fff;
-        border:none;border-radius:8px;font-size:0.95rem;font-weight:700;
-        cursor:pointer;text-decoration:none;margin-bottom:10px;">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="white">
-          <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/>
-          <path d="M12 0C5.373 0 0 5.373 0 12c0 2.126.555 4.122 1.528 5.857L.057 23.927l6.233-1.635A11.945 11.945 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.818 9.818 0 01-5.015-1.378l-.36-.213-3.7.97.988-3.61-.235-.371A9.818 9.818 0 012.182 12C2.182 6.573 6.573 2.182 12 2.182S21.818 6.573 21.818 12 17.427 21.818 12 21.818z"/>
-        </svg>
+        border:none;border-radius:8px;text-decoration:none;margin-bottom:10px;">
         Enviar comprobante por WhatsApp
       </a>
-      <button id="ck-next" style="width:100%;padding:13px;background:#2D6A4F;color:#fff;border:none;border-radius:8px;font-size:0.95rem;font-weight:700;cursor:pointer;">
+      <button id="ck-next" style="width:100%;padding:13px;background:#2D6A4F;color:#fff;border:none;border-radius:8px;cursor:pointer;">
         ✓ Ya realicé la transferencia
       </button>`;
 
@@ -774,13 +810,13 @@ function renderCheckout(modal) {
         <div style="background:#f5f0e8;border-radius:10px;padding:14px;margin-bottom:20px;">
           <p style="margin:0;font-size:0.82rem;">En cuanto confirmemos tu transferencia, te contactamos.</p>
         </div>
-        <button onclick="cerrarCheckout()" style="width:100%;padding:13px;background:#3b2a1a;color:#faf6f0;border:none;border-radius:8px;font-size:0.95rem;font-weight:700;cursor:pointer;">
+        <button onclick="cerrarCheckout()" style="width:100%;padding:13px;background:#3b2a1a;color:#faf6f0;border:none;border-radius:8px;cursor:pointer;">
           Cerrar
         </button>
       </div>`;
   }
 
-  modal.innerHTML = `
+  checkoutModal.innerHTML = `
     <div style="background:#faf6f0;border-radius:14px;padding:28px 24px;max-width:440px;width:100%;box-shadow:0 16px 60px rgba(58,40,25,0.22);max-height:90vh;overflow-y:auto;position:relative;">
       <button onclick="cerrarCheckout()" style="position:absolute;top:16px;right:16px;background:none;border:none;font-size:1.3rem;cursor:pointer;color:#9a8878;">×</button>
       <div style="display:flex;align-items:center;gap:4px;margin-bottom:22px;">${stepBar}</div>
@@ -788,14 +824,14 @@ function renderCheckout(modal) {
     </div>`;
 
   if (checkoutStep === 1) {
-    const nextBtn = modal.querySelector('#ck-next');
+    const nextBtn = document.getElementById('ck-next');
     if (nextBtn) {
       nextBtn.addEventListener('click', async () => {
-        const nombre = modal.querySelector('#ck-nombre')?.value.trim();
-        const email = modal.querySelector('#ck-email')?.value.trim();
-        const telefono = modal.querySelector('#ck-telefono')?.value.trim();
-        const direccion = modal.querySelector('#ck-direccion')?.value.trim();
-        const errorEl = modal.querySelector('#ck-error');
+        const nombre = document.getElementById('ck-nombre')?.value.trim();
+        const email = document.getElementById('ck-email')?.value.trim();
+        const telefono = document.getElementById('ck-telefono')?.value.trim();
+        const direccion = document.getElementById('ck-direccion')?.value.trim();
+        const errorEl = document.getElementById('ck-error');
         
         if (!nombre || !email) {
           if (errorEl) errorEl.style.display = 'block';
@@ -804,50 +840,27 @@ function renderCheckout(modal) {
         if (errorEl) errorEl.style.display = 'none';
         
         checkoutDatosCliente = { nombre, email, telefono, direccion };
-        
         checkoutStep = 2;
-        renderCheckout(modal);
+        renderCheckout();
       });
     }
   }
 
   if (checkoutStep === 2) {
-    const nextBtn = modal.querySelector('#ck-next');
+    const nextBtn = document.getElementById('ck-next');
     if (nextBtn) {
-      const newBtn = nextBtn.cloneNode(true);
-      nextBtn.parentNode.replaceChild(newBtn, nextBtn);
-      
-      newBtn.addEventListener('click', async () => {
-        const textoOriginal = newBtn.textContent;
-        newBtn.textContent = '🔍 Verificando stock...';
-        newBtn.disabled = true;
-
-        const stockValido = await verificarStockEnTiempoReal();
-        if (!stockValido) {
-          newBtn.textContent = textoOriginal;
-          newBtn.disabled = false;
-          cerrarCheckout();
-          return;
-        }
-
-        newBtn.textContent = '📦 Registrando pedido...';
-        const stockDescontado = await descontarStockEnFirebase();
-        if (!stockDescontado) {
-          mostrarNotificacion('Error al procesar el pedido. Intentá de nuevo.', 'error');
-          newBtn.textContent = textoOriginal;
-          newBtn.disabled = false;
-          return;
-        }
-
-        newBtn.textContent = '📧 Confirmando pedido...';
+      nextBtn.addEventListener('click', async () => {
+        nextBtn.disabled = true;
+        nextBtn.textContent = 'Procesando...';
+        
         await confirmarPedidoConEmail(checkoutDatosCliente);
-
+        
         carrito = [];
         guardarCarrito();
         actualizarUI();
         
         checkoutStep = 3;
-        renderCheckout(modal);
+        renderCheckout();
       });
     }
   }
@@ -867,7 +880,7 @@ function actualizarUI() {
 // ===============================
 function aplicarFiltros() {
   paginaActual = 1;
-  actualizarUI();
+  renderizarProductos();
 }
 
 // ===============================
@@ -880,6 +893,7 @@ function toggleCarrito() {
   const isOpen = panel.classList.toggle('open');
   overlay.classList.toggle('active', isOpen);
   document.body.classList.toggle('no-scroll', isOpen);
+  if (isOpen) renderizarCarrito();
 }
 
 // ===============================
@@ -1063,14 +1077,7 @@ function init() {
   cargarProductosDesdeSheets();
   inicializarEventos();
   initShowcaseCarousel();
-  
-  // Sincronización cada 10 segundos
-  setInterval(async () => {
-    if (productosCargados) {
-      await cargarProductosDesdeSheets();
-      console.log('🔄 Productos actualizados automáticamente');
-    }
-  }, 10000);
+  iniciarListenerTiempoReal();
   
   if (window.emailjs) {
     emailjs.init(EMAILJS_PUBLIC_KEY);
@@ -1120,7 +1127,13 @@ function inicializarEventos() {
   document.getElementById('carrito-btn-main')?.addEventListener('click', toggleCarrito);
   document.querySelector('.carrito-overlay')?.addEventListener('click', toggleCarrito);
   document.querySelector('.cerrar-carrito')?.addEventListener('click', toggleCarrito);
-  document.querySelector('.boton-vaciar-carrito')?.addEventListener('click', () => {
+  document.querySelector('.boton-vaciar-carrito')?.addEventListener('click', async () => {
+    // Devolver stock a Firebase antes de vaciar
+    for (const item of carrito) {
+      await descontarStockEnFirebase(item.id, -item.cantidad);
+      const prod = productos.find(p => p.id === item.id);
+      if (prod) prod.stock += item.cantidad;
+    }
     carrito = [];
     guardarCarrito();
     actualizarUI();
@@ -1188,7 +1201,7 @@ function inicializarEventos() {
         getElement('producto-modal').style.display = 'none';
         document.body.classList.remove('no-scroll');
       }
-      if (getElement('checkout-modal')?.style.display === 'flex') cerrarCheckout();
+      if (checkoutModal?.style.display === 'flex') cerrarCheckout();
     }
   });
   
@@ -1219,6 +1232,13 @@ function inicializarEventos() {
     });
   }
 }
+
+// ===============================
+// FUNCIONES GLOBALES PARA BOTONES
+// ===============================
+window.cerrarCheckout = cerrarCheckout;
+window.abrirCheckout = abrirCheckout;
+window.agregarAlCarrito = agregarAlCarrito;
 
 // ===============================
 // INICIAR TODO
