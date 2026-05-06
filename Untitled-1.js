@@ -628,24 +628,45 @@ function mostrarModalProducto(p) {
     carruselHtml += `<img src="${PLACEHOLDER_IMAGE}" class="modal-img-principal" alt="${p.nombre}" loading="lazy">`;
   }
   
-  modalContenido.innerHTML = `
-    <button class="cerrar-modal" aria-label="Cerrar modal">&times;</button>
-    <div class="modal-flex">
-      <div class="modal-carrusel">${carruselHtml}</div>
-      <div class="modal-info">
-        <h2 class="modal-nombre">${p.nombre}</h2>
-        <div class="modal-precio">$U ${p.precio.toLocaleString('es-UY')}</div>
-        <div class="modal-stock ${disp > 0 ? 'disponible' : 'agotado'}">${disp > 0 ? `Disponibles: ${disp}` : 'AGOTADO'}</div>
-        <div class="modal-descripcion">${p.descripcion || ''}</div>
-        ${p.adicionales ? `<div class="modal-detalles"><span>Material:</span> ${p.adicionales}</div>` : ''}
-        <div class="modal-acciones">
-          <input type="number" value="1" min="1" max="${disp}" class="cantidad-modal-input" ${disp <= 0 ? 'disabled' : ''}>
-          <button class="boton-agregar-modal${disp <= 0 ? ' agotado' : ''}" ${disp <= 0 ? 'disabled' : ''} data-id="${p.id}">${disp <= 0 ? 'Agotado' : 'Agregar al carrito'}</button>
-        </div>
+ modalContenido.innerHTML = `
+  <button class="cerrar-modal" aria-label="Cerrar modal">&times;</button>
+  <div class="modal-flex">
+    <div class="modal-carrusel">${carruselHtml}</div>
+    <div class="modal-info">
+      <h2 class="modal-nombre">${p.nombre}</h2>
+      <div class="modal-precio">$U ${p.precio.toLocaleString('es-UY')}</div>
+      <div class="modal-stock ${disp > 0 ? 'disponible' : 'agotado'}">
+        ${disp > 0 ? `Disponibles: ${disp}` : 'AGOTADO'}
+      </div>
+      <div class="modal-descripcion">${p.descripcion || ''}</div>
+
+      ${(p.alto || p.ancho || p.profundidad) ? `
+        <div class="modal-detalles">
+          <span>Medidas:</span>
+          ${p.alto ? `${p.alto} cm alto` : ''}
+          ${p.ancho ? ` × ${p.ancho} cm ancho` : ''}
+          ${p.profundidad ? ` × ${p.profundidad} cm prof.` : ''}
+        </div>` : ''}
+
+      ${p.adicionales ? `
+        <div class="modal-detalles">
+          <span>Incluye:</span> ${p.adicionales}
+        </div>` : ''}
+
+      ${p.estado ? `
+        <div class="modal-detalles">
+          <span>Estado:</span> ${p.estado}
+        </div>` : ''}
+
+      <div class="modal-acciones">
+        <input type="number" value="1" min="1" max="${disp}" class="cantidad-modal-input" ${disp <= 0 ? 'disabled' : ''}>
+        <button class="boton-agregar-modal${disp <= 0 ? ' agotado' : ''}" ${disp <= 0 ? 'disabled' : ''} data-id="${p.id}">
+          ${disp <= 0 ? 'Agotado' : 'Agregar al carrito'}
+        </button>
       </div>
     </div>
-  `;
-  
+  </div>
+`;
   if (p.imagenes && p.imagenes.length > 1) {
     const mainImg = modalContenido.querySelector('.modal-img-principal');
     modalContenido.querySelectorAll('.modal-thumbnail').forEach((thumb, i) => {
