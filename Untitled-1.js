@@ -146,9 +146,9 @@ function procesarDatosProductos(data) {
           ? p.imagenes
           : (p.imagenes ? String(p.imagenes).split(',').map(x => x.trim()).filter(Boolean) : []),
         adicionales: p.adicionales ? String(p.adicionales).trim() : '',
-        alto: parseFloat(p.alto) || null,
-        ancho: parseFloat(p.ancho) || null,
-        profundidad: parseFloat(p.profundidad) || null,
+        alto:        parseFloat(String(p.alto || '').replace(',', '.')) || null,
+ancho:       parseFloat(String(p.ancho || '').replace(',', '.')) || null,
+profundidad: parseFloat(String(p.profundidad || '').replace(',', '.')) || null,
         categoria: p.categoria ? String(p.categoria).trim().toLowerCase() : 'otros',
         vendido: p.vendido === true || String(p.vendido).toLowerCase() === 'true',
         estado: p.estado ? String(p.estado).trim() : '',
