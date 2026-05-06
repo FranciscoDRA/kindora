@@ -1150,7 +1150,7 @@ function initShowcaseCarousel() {
   
   // Tomar los primeros 8 productos (o los que quieras)
   // Podés filtrar: .filter(p => p.destacado === true) si tenés ese campo
-  const items = productos.slice(0, 8).map(p => ({
+  const items = productos.slice(0,17 ).map(p => ({
     nombre: p.nombre || '',
     categoria: p.categoria ? p.categoria.charAt(0).toUpperCase() + p.categoria.slice(1) : 'Colección',
     precio: p.precio || 0,
