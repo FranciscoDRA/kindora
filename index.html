@@ -15,10 +15,10 @@
     window.PLACEHOLDER_IMAGE = 'https://placehold.co/600x600/EDE4D6/4A3728?text=Kindora';
   </script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
-<script src="firebase-config.js"></script>
-<script src="Untitled-1.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="firebase-config.js"></script>
+  <script src="Untitled-1.js"></script>
 </head>
 <body>
 
@@ -97,14 +97,12 @@
 <!-- Hero -->
 <section id="inicio" class="hero">
   <div class="hero-left">
-    
     <h1>Convertí tu<br><em>momento de lectura</em><br>en algo todavía más lindo.</h1>
     <p class="hero-sub">Accesorios para e-readers y lectores que combinan comodidad, protección y estilo.</p>
     <div class="hero-cta">
       <a href="#coleccion" class="btn-primary"><span>Explorar colección</span></a>
       <a href="#nosotros" class="btn-secondary">Nuestra historia</a>
     </div>
-    
   </div>
   <div class="hero-right">
     <!-- SHOWCASE CAROUSEL -->
@@ -144,16 +142,10 @@
   </div>
 </section>
 
-
-
-
-
-
 <!-- Productos -->
 <section id="coleccion" class="products-section">
   <div class="container">
     <div class="section-header reveal">
-     
       <h2>Accesorios para <em>lectores</em></h2>
       <p class="section-sub">Cada pieza pensada para realzar tu ritual de lectura.</p>
     </div>
@@ -191,57 +183,61 @@
 <section id="nosotros" class="editorial-section">
   <div class="container">
     <div class="editorial-grid">
-    <div class="editorial-image reveal">
-  <div class="editorial-frame" style="
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    background:#EDE4D6;
-    position:relative;
-  ">
-    <!-- Marco decorativo interior -->
-    <div style="
-      position:absolute;
-      inset:24px;
-      border:0.5px solid rgba(212,163,115,0.5);
-      pointer-events:none;
-    "></div>
-    
-    <!-- Logo -->
-    <img src="img/imagen_agustina_vale.jpeg" alt="Kindora" style="
-      width:55%;
-      max-width:240px;
-      height:auto;
-      object-fit:contain;
-      position:relative;
-      z-index:1;
-    ">
 
-    <!-- Esquinas decorativas -->
-    <div style="position:absolute;top:12px;left:12px;width:20px;height:20px;border-top:1.5px solid var(--sepia);border-left:1.5px solid var(--sepia);opacity:0.6;"></div>
-    <div style="position:absolute;top:12px;right:12px;width:20px;height:20px;border-top:1.5px solid var(--sepia);border-right:1.5px solid var(--sepia);opacity:0.6;"></div>
-    <div style="position:absolute;bottom:12px;left:12px;width:20px;height:20px;border-bottom:1.5px solid var(--sepia);border-left:1.5px solid var(--sepia);opacity:0.6;"></div>
-    <div style="position:absolute;bottom:12px;right:12px;width:20px;height:20px;border-bottom:1.5px solid var(--sepia);border-right:1.5px solid var(--sepia);opacity:0.6;"></div>
-  </div>
-  <div class="editorial-ornament"></div>
-</div>
-     <div class="editorial-content reveal">
-  <span class="section-tag">Nuestra historia</span>
-  <blockquote>"Cada lector merece un accesorio tan bien diseñado como el libro que sostiene."</blockquote>
-  
-  <p>Kindora nació entre lecturas, recomendaciones y esas ganas de hacer más lindo el momento de leer. Somos Valentina y Agustina, dos amigas apasionadas por la lectura y usuarias de Kindle desde hace años.</p>
-  
-  <p>Con el tiempo fuimos descubriendo accesorios que nos hacían la experiencia más cómoda, más práctica y también más linda: fundas, straps, protectores y pequeños detalles que terminaban acompañándonos todos los días. Pero también notamos algo: en nuestro mercado no había demasiadas opciones pensadas para quienes usamos estos dispositivos de forma cotidiana y queremos cuidarlos sin perder estilo.</p>
-  
-  <p>Así nació Kindora: con la ilusión de compartir una selección de accesorios que nosotras mismas elegiríamos, usaríamos y recomendaríamos. Para personas como nosotras: lectoras, curiosas, detallistas y felices de encontrar ese accesorio que hace que leer se sienta todavía más propio.</p>
-  
-  <div class="editorial-signature">— Valentina y Agustina</div>
-</div>
+      <div class="editorial-image reveal">
+        <div class="editorial-frame" style="
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: #EDE4D6;
+          position: relative;
+          overflow: hidden;
+        ">
+          <!-- Marco decorativo interior (encima de la foto) -->
+          <div style="
+            position: absolute;
+            inset: 24px;
+            border: 0.5px solid rgba(212,163,115,0.5);
+            pointer-events: none;
+            z-index: 2;
+          "></div>
+
+          <!-- Foto a full -->
+          <img src="img/imagen_agustina_vale.jpeg" alt="Valentina y Agustina" style="
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            object-position: center top;
+            z-index: 1;
+          ">
+
+          <!-- Esquinas decorativas -->
+          <div style="position:absolute;top:12px;left:12px;width:20px;height:20px;border-top:1.5px solid var(--sepia);border-left:1.5px solid var(--sepia);opacity:0.6;z-index:3;"></div>
+          <div style="position:absolute;top:12px;right:12px;width:20px;height:20px;border-top:1.5px solid var(--sepia);border-right:1.5px solid var(--sepia);opacity:0.6;z-index:3;"></div>
+          <div style="position:absolute;bottom:12px;left:12px;width:20px;height:20px;border-bottom:1.5px solid var(--sepia);border-left:1.5px solid var(--sepia);opacity:0.6;z-index:3;"></div>
+          <div style="position:absolute;bottom:12px;right:12px;width:20px;height:20px;border-bottom:1.5px solid var(--sepia);border-right:1.5px solid var(--sepia);opacity:0.6;z-index:3;"></div>
+        </div>
+        <div class="editorial-ornament"></div>
+      </div>
+
+      <div class="editorial-content reveal">
+        <span class="section-tag">Nuestra historia</span>
+        <blockquote>"Cada lector merece un accesorio tan bien diseñado como el libro que sostiene."</blockquote>
+
+        <p>Kindora nació entre lecturas, recomendaciones y esas ganas de hacer más lindo el momento de leer. Somos Valentina y Agustina, dos amigas apasionadas por la lectura y usuarias de Kindle desde hace años.</p>
+
+        <p>Con el tiempo fuimos descubriendo accesorios que nos hacían la experiencia más cómoda, más práctica y también más linda: fundas, straps, protectores y pequeños detalles que terminaban acompañándonos todos los días. Pero también notamos algo: en nuestro mercado no había demasiadas opciones pensadas para quienes usamos estos dispositivos de forma cotidiana y queremos cuidarlos sin perder estilo.</p>
+
+        <p>Así nació Kindora: con la ilusión de compartir una selección de accesorios que nosotras mismas elegiríamos, usaríamos y recomendaríamos. Para personas como nosotras: lectoras, curiosas, detallistas y felices de encontrar ese accesorio que hace que leer se sienta todavía más propio.</p>
+
+        <div class="editorial-signature">— Valentina y Agustina</div>
+      </div>
+
     </div>
   </div>
 </section>
-
-
 
 <!-- Contacto -->
 <section id="contacto" class="contact-section">
