@@ -860,48 +860,36 @@ async function enviarCorreoCompra(datosCompra) {
     `${p.nombre} x${p.cantidad} — $U ${((p.precio || 0) * (p.cantidad || 0)).toLocaleString('es-UY')}`
   ).join('\n');
 
-  const mensajeCliente = `¡Hola ${datosCompra.cliente.nombre}!
+  const esMercadoPago = datosCompra.metodoPago === 'mercadopago';
 
-Gracias por comprar en Kindora 🛍️
-
-Recibimos tu pedido #${datosCompra.orderId}.
-En breve te enviamos el link de pago de Mercado Pago por $U ${datosCompra.totalConRecargo} (incluye 10% recargo MP).
-Retiro en Pick Up ${datosCompra.cliente.pickup}.
-
-¿Dudas? Escribinos a kindorauy@gmail.com o por Instagram @kindorauy.`;
-
-  const mensajeAdmin = `🛒 NUEVO PEDIDO #${datosCompra.orderId}
-
-Cliente: ${datosCompra.cliente.nombre}
-Email: ${datosCompra.cliente.email}
-Teléfono: ${datosCompra.cliente.telefono || '—'}
-Pickup: ${datosCompra.cliente.pickup}
-Método de pago: ${datosCompra.metodoPago}
-
-PRODUCTOS:
-${productosTexto}
-
-Subtotal: $U ${datosCompra.subtotal}
-Total con recargo MP: $U ${datosCompra.totalConRecargo}`;
+  const params = {
+    order_id:      datosCompra.orderId,
+    order_date:    new Date().toLocaleString('es-UY'),
+    total_amount:  datosCompra.subtotal,
+    total_con_recargo: datosCompra.totalConRecargo,
+    client_name:   datosCompra.cliente.nombre,
+    client_email:  datosCompra.cliente.email,
+    client_pickup: datosCompra.cliente.pickup,
+    products:      productosTexto,
+  };
 
   try {
-    // Al cliente
+    // Al CLIENTE
     await emailjs.send(EMAILJS_SERVICE_ID, TEMPLATE_COMPRA, {
-      order_id:            datosCompra.orderId,
-      to_email:            datosCompra.cliente.email,
-      mensaje_personalizado: mensajeCliente,
+      ...params,
+      to_email: datosCompra.cliente.email,
     });
 
-    // Al admin
+    // Al ADMIN — mismo template, mismo diseño, pero con datos extra en products
     await emailjs.send(EMAILJS_SERVICE_ID, TEMPLATE_COMPRA, {
-      order_id:            datosCompra.orderId,
-      to_email:            ADMIN_EMAIL,
-      mensaje_personalizado: mensajeAdmin,
+      ...params,
+      to_email: ADMIN_EMAIL,
+      products: `Cliente: ${datosCompra.cliente.nombre} | ${datosCompra.cliente.email} | Tel: ${datosCompra.cliente.telefono || '—'} | Pago: ${datosCompra.metodoPago}\n\n${productosTexto}`,
     });
 
     return { success: true };
   } catch (error) {
-    console.error('Error EmailJS compra:', error);
+    console.error('Error EmailJS:', error);
     return { success: false, error };
   }
 }
