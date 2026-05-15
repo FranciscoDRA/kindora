@@ -865,6 +865,8 @@ async function enviarCorreoCompra(datosCompra) {
     const templateParams = {
       order_id:            datosCompra.orderId,
       order_date:          new Date().toLocaleString('es-UY'),
+      metodo_pago:         datosCompra.metodoPago || 'transferencia',
+      subtotal:            datosCompra.subtotal,
       total_amount:        datosCompra.total,
       total_con_recargo:   datosCompra.totalConRecargo,
       client_name:         datosCompra.cliente.nombre,
@@ -872,6 +874,9 @@ async function enviarCorreoCompra(datosCompra) {
       client_phone:        datosCompra.cliente.telefono || '—',
       client_pickup:       datosCompra.cliente.pickup || '—',
       products:            productosHtml,
+      banco:               CUENTA_BANCO,
+      cuenta_numero:       CUENTA_NUMERO,
+      cuenta_titular:      CUENTA_TITULAR,
     };
 
     await emailjs.send(EMAILJS_SERVICE_ID, TEMPLATE_COMPRA, templateParams);
@@ -888,10 +893,15 @@ async function confirmarPedidoConEmail(datosCliente) {
   const totalNumerico = carrito.reduce((sum, i) => sum + (i.precio || 0) * (i.cantidad || 0), 0);
   const totalConRecargo = Math.round(totalNumerico * 1.10);
   const orderId = 'KIN-' + Date.now().toString().slice(-8);
+  
+  // Determinar total según método de pago
+  const totalAPagar = datosCliente.metodoPago === 'mercadopago' ? totalConRecargo : totalNumerico;
 
   const datosCompra = {
     orderId,
-    total: totalNumerico.toLocaleString('es-UY'),
+    metodoPago: datosCliente.metodoPago || 'transferencia',
+    subtotal: totalNumerico.toLocaleString('es-UY'),
+    total: totalAPagar.toLocaleString('es-UY'),
     totalConRecargo: totalConRecargo.toLocaleString('es-UY'),
     cliente: {
       nombre: datosCliente.nombre || 'Cliente',
@@ -901,7 +911,7 @@ async function confirmarPedidoConEmail(datosCliente) {
     },
     productos: [...carrito],
     fecha: new Date().toISOString(),
-    estado: 'pendiente_pago'
+    estado: datosCliente.metodoPago === 'mercadopago' ? 'pendiente_pago' : 'pendiente_confirmacion'
   };
 
   try {
@@ -1020,27 +1030,50 @@ function renderCheckout() {
       </div>
       <button id="ck-next" style="margin-top:18px;width:100%;padding:13px;background:#3b2a1a;color:#fff;border:none;border-radius:8px;cursor:pointer;">Continuar al pago →</button>`;
   } else if (checkoutStep === 2) {
+    const metodoGuardado = checkoutDatosCliente.metodoPago || 'transferencia';
     const totalConRecargo = Math.round(total * 1.10);
     const totalConRecargoStr = totalConRecargo.toLocaleString('es-UY');
 
     contenido = `
       <div style="font-size:0.82rem;color:#7a6450;margin-bottom:16px;">
-        Revisá el resumen de tu pedido antes de confirmar.
+        Elegí cómo querés pagar tu pedido.
       </div>
 
+      <!-- Selector de método de pago -->
       <div style="background:#f5f0e8;border-radius:10px;padding:16px;margin-bottom:14px;">
-        <div style="font-size:0.78rem;letter-spacing:0.1em;text-transform:uppercase;color:#9a8878;margin-bottom:12px;">Resumen</div>
+        <div style="font-size:0.78rem;letter-spacing:0.1em;text-transform:uppercase;color:#9a8878;margin-bottom:12px;">Método de pago</div>
+        
+        <label style="display:flex;align-items:center;gap:10px;padding:12px;border:2px solid ${metodoGuardado === 'transferencia' ? '#2D6A4F' : '#e0d8ce'};border-radius:10px;margin-bottom:10px;cursor:pointer;background:${metodoGuardado === 'transferencia' ? '#eef6f1' : 'white'};">
+          <input type="radio" name="metodo-pago" value="transferencia" ${metodoGuardado === 'transferencia' ? 'checked' : ''} style="accent-color:#2D6A4F;">
+          <div>
+            <strong style="color:#3b2a1a;">🏦 Transferencia bancaria</strong>
+            <p style="margin:4px 0 0 0;font-size:0.75rem;color:#7a6450;">Sin recargo. Pagás desde tu banco.</p>
+          </div>
+        </label>
+        
+        <label style="display:flex;align-items:center;gap:10px;padding:12px;border:2px solid ${metodoGuardado === 'mercadopago' ? '#2D6A4F' : '#e0d8ce'};border-radius:10px;cursor:pointer;background:${metodoGuardado === 'mercadopago' ? '#eef6f1' : 'white'};">
+          <input type="radio" name="metodo-pago" value="mercadopago" ${metodoGuardado === 'mercadopago' ? 'checked' : ''} style="accent-color:#2D6A4F;">
+          <div>
+            <strong style="color:#3b2a1a;">💳 Mercado Pago</strong>
+            <p style="margin:4px 0 0 0;font-size:0.75rem;color:#7a6450;">Recargo del 10%. Te enviamos link de pago.</p>
+          </div>
+        </label>
+      </div>
+
+      <!-- Resumen que cambia según método de pago -->
+      <div style="background:#f5f0e8;border-radius:10px;padding:16px;margin-bottom:14px;">
+        <div style="font-size:0.78rem;letter-spacing:0.1em;text-transform:uppercase;color:#9a8878;margin-bottom:12px;">Resumen del pedido</div>
         <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #e8ddd0;font-size:0.88rem;">
           <span style="color:#7a6450;">Subtotal</span>
           <span style="color:#3b2a1a;">$U ${totalStr}</span>
         </div>
-        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #e8ddd0;font-size:0.88rem;">
+        <div id="resumen-recargo" style="display:${metodoGuardado === 'mercadopago' ? 'flex' : 'none'};justify-content:space-between;padding:8px 0;border-bottom:1px solid #e8ddd0;font-size:0.88rem;">
           <span style="color:#7a6450;">Recargo Mercado Pago (10%)</span>
           <span style="color:#3b2a1a;">$U ${Math.round(total * 0.10).toLocaleString('es-UY')}</span>
         </div>
         <div style="display:flex;justify-content:space-between;padding:10px 0 4px;font-size:1rem;">
           <span style="color:#9a8878;font-size:0.78rem;letter-spacing:0.08em;text-transform:uppercase;">Total a pagar</span>
-          <strong style="color:#3b2a1a;font-size:1.2rem;">$U ${totalConRecargoStr}</strong>
+          <strong id="total-a-pagar" style="color:#3b2a1a;font-size:1.2rem;">$U ${metodoGuardado === 'mercadopago' ? totalConRecargoStr : totalStr}</strong>
         </div>
       </div>
 
@@ -1049,10 +1082,20 @@ function renderCheckout() {
         <strong style="color:#3b2a1a;">Pick Up ${checkoutDatosCliente.pickup || '—'}</strong>
       </div>
 
-      <div style="background:#eef6f1;border:1px solid #c3ddd0;border-radius:10px;padding:14px 16px;margin-bottom:16px;">
+      <div id="mensaje-transferencia" style="background:#eef6f1;border:1px solid #c3ddd0;border-radius:10px;padding:14px 16px;margin-bottom:16px;display:${metodoGuardado === 'transferencia' ? 'block' : 'none'};">
+        <p style="font-size:0.82rem;color:#2D6A4F;margin:0;line-height:1.6;">
+          💰 <strong>Datos para transferencia:</strong><br>
+          Banco: ${CUENTA_BANCO}<br>
+          N° de cuenta: ${CUENTA_NUMERO}<br>
+          Titular: ${CUENTA_TITULAR}<br><br>
+          📧 Al confirmar te llegará un email con los datos. Una vez realizada la transferencia, respondé el email adjuntando el comprobante.
+        </p>
+      </div>
+
+      <div id="mensaje-mercadopago" style="background:#eef6f1;border:1px solid #c3ddd0;border-radius:10px;padding:14px 16px;margin-bottom:16px;display:${metodoGuardado === 'mercadopago' ? 'block' : 'none'};">
         <p style="font-size:0.82rem;color:#2D6A4F;margin:0;line-height:1.6;">
           📧 Al confirmar te llegará un email con tu pedido.<br>
-          <strong>Nosotras te enviamos el link de pago de Mercado Pago en menos de 24 horas hábiles.</strong>
+          <strong>Nosotras te enviamos el link de pago de Mercado Pago por $U ${totalConRecargoStr} en menos de 24 horas hábiles.</strong>
         </p>
       </div>
 
@@ -1100,9 +1143,54 @@ function renderCheckout() {
   }
 
   if (checkoutStep === 2) {
+    // Event listeners para los radio buttons de método de pago
+    const radios = document.querySelectorAll('input[name="metodo-pago"]');
+    radios.forEach(radio => {
+      radio.addEventListener('change', (e) => {
+        const metodo = e.target.value;
+        checkoutDatosCliente.metodoPago = metodo;
+        
+        const totalActual = carrito.reduce((s, i) => s + (i.precio || 0) * (i.cantidad || 0), 0);
+        const totalStrActual = totalActual.toLocaleString('es-UY');
+        const totalConRecargoActual = Math.round(totalActual * 1.10);
+        const totalConRecargoStrActual = totalConRecargoActual.toLocaleString('es-UY');
+        
+        // Actualizar estilos de los labels
+        document.querySelectorAll('label').forEach(label => {
+          const radio = label.querySelector('input[name="metodo-pago"]');
+          if (radio) {
+            label.style.borderColor = radio.checked ? '#2D6A4F' : '#e0d8ce';
+            label.style.background = radio.checked ? '#eef6f1' : 'white';
+          }
+        });
+        
+        // Mostrar/ocultar recargo
+        const resumenRecargo = document.getElementById('resumen-recargo');
+        const mensajeTransferencia = document.getElementById('mensaje-transferencia');
+        const mensajeMercadoPago = document.getElementById('mensaje-mercadopago');
+        const totalSpan = document.getElementById('total-a-pagar');
+        
+        if (metodo === 'mercadopago') {
+          if (resumenRecargo) resumenRecargo.style.display = 'flex';
+          if (mensajeTransferencia) mensajeTransferencia.style.display = 'none';
+          if (mensajeMercadoPago) mensajeMercadoPago.style.display = 'block';
+          if (totalSpan) totalSpan.textContent = `$U ${totalConRecargoStrActual}`;
+        } else {
+          if (resumenRecargo) resumenRecargo.style.display = 'none';
+          if (mensajeTransferencia) mensajeTransferencia.style.display = 'block';
+          if (mensajeMercadoPago) mensajeMercadoPago.style.display = 'none';
+          if (totalSpan) totalSpan.textContent = `$U ${totalStrActual}`;
+        }
+      });
+    });
+    
     const nextBtn = document.getElementById('ck-next');
     if (nextBtn) {
       nextBtn.onclick = async () => {
+        // Guardar método de pago seleccionado
+        const metodoSeleccionado = document.querySelector('input[name="metodo-pago"]:checked')?.value || 'transferencia';
+        checkoutDatosCliente.metodoPago = metodoSeleccionado;
+        
         nextBtn.disabled = true;
         nextBtn.textContent = '📧 Confirmando pedido...';
         
