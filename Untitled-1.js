@@ -855,49 +855,50 @@ async function enviarCorreoContacto(formData) {
   }
 }
 
-async function enviarCorreoCompra(datosCompra, esParaAdmin = false) {
+async function enviarCorreoCompra(datosCompra) {
+  const productosTexto = datosCompra.productos.map(p =>
+    `${p.nombre} x${p.cantidad} — $U ${((p.precio || 0) * (p.cantidad || 0)).toLocaleString('es-UY')}`
+  ).join('\n');
+
+  const mensajeCliente = `¡Hola ${datosCompra.cliente.nombre}!
+
+Gracias por comprar en Kindora 🛍️
+
+Recibimos tu pedido #${datosCompra.orderId}.
+En breve te enviamos el link de pago de Mercado Pago por $U ${datosCompra.totalConRecargo} (incluye 10% recargo MP).
+Retiro en Pick Up ${datosCompra.cliente.pickup}.
+
+¿Dudas? Escribinos a kindorauy@gmail.com o por Instagram @kindorauy.`;
+
+  const mensajeAdmin = `🛒 NUEVO PEDIDO #${datosCompra.orderId}
+
+Cliente: ${datosCompra.cliente.nombre}
+Email: ${datosCompra.cliente.email}
+Teléfono: ${datosCompra.cliente.telefono || '—'}
+Pickup: ${datosCompra.cliente.pickup}
+Método de pago: ${datosCompra.metodoPago}
+
+PRODUCTOS:
+${productosTexto}
+
+Subtotal: $U ${datosCompra.subtotal}
+Total con recargo MP: $U ${datosCompra.totalConRecargo}`;
+
   try {
-    const productosHtml = datosCompra.productos.map(p => `
-        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #eee;">
-          <span>${p.nombre} x${p.cantidad}</span>
-          <strong>$U ${((p.precio || 0) * (p.cantidad || 0)).toLocaleString('es-UY')}</strong>
-        </div>`).join('');
+    // Al cliente
+    await emailjs.send(EMAILJS_SERVICE_ID, TEMPLATE_COMPRA, {
+      order_id:            datosCompra.orderId,
+      to_email:            datosCompra.cliente.email,
+      mensaje_personalizado: mensajeCliente,
+    });
 
-    let templateParams;
-    
-    if (esParaAdmin) {
-      // Email para el ADMIN (kindorauy@gmail.com) - con todos los detalles
-      templateParams = {
-        to_email:          ADMIN_EMAIL,
-        order_id:          datosCompra.orderId,
-        order_date:        new Date().toLocaleString('es-UY'),
-        metodo_pago:       datosCompra.metodoPago || 'transferencia',
-        subtotal:          datosCompra.subtotal,
-        total_amount:      datosCompra.total,
-        total_con_recargo: datosCompra.totalConRecargo,
-        client_name:       datosCompra.cliente.nombre,
-        client_email:      datosCompra.cliente.email,
-        client_phone:      datosCompra.cliente.telefono || '—',
-        client_pickup:     datosCompra.cliente.pickup || '—',
-        products:          productosHtml,
-        banco:             CUENTA_BANCO,
-        cuenta_numero:     CUENTA_NUMERO,
-        cuenta_titular:    CUENTA_TITULAR,
-        es_admin:          'true',
-      };
-    } else {
-      // Email para el CLIENTE - solo confirmación simple
-      templateParams = {
-        to_email:          datosCompra.cliente.email,
-        order_id:          datosCompra.orderId,
-        client_name:       datosCompra.cliente.nombre,
-        client_pickup:     datosCompra.cliente.pickup || '—',
-        total_con_recargo: datosCompra.totalConRecargo,
-        es_admin:          'false',
-      };
-    }
+    // Al admin
+    await emailjs.send(EMAILJS_SERVICE_ID, TEMPLATE_COMPRA, {
+      order_id:            datosCompra.orderId,
+      to_email:            ADMIN_EMAIL,
+      mensaje_personalizado: mensajeAdmin,
+    });
 
-    await emailjs.send(EMAILJS_SERVICE_ID, TEMPLATE_COMPRA, templateParams);
     return { success: true };
   } catch (error) {
     console.error('Error EmailJS compra:', error);
@@ -912,7 +913,6 @@ async function confirmarPedidoConEmail(datosCliente) {
   const totalConRecargo = Math.round(totalNumerico * 1.10);
   const orderId = 'KIN-' + Date.now().toString().slice(-8);
   
-  // Determinar total según método de pago
   const totalAPagar = datosCliente.metodoPago === 'mercadopago' ? totalConRecargo : totalNumerico;
 
   const datosCompra = {
@@ -944,13 +944,9 @@ async function confirmarPedidoConEmail(datosCliente) {
 
   mostrarNotificacion('Enviando confirmación...', 'info');
   
-  // Enviar email al CLIENTE
-  const resultCliente = await enviarCorreoCompra(datosCompra, false);
-  
-  // Enviar email al ADMIN
-  const resultAdmin = await enviarCorreoCompra(datosCompra, true);
+  const result = await enviarCorreoCompra(datosCompra);
 
-  if (resultCliente.success && resultAdmin.success) {
+  if (result.success) {
     mostrarNotificacion('✅ Pedido confirmado. Te llegará un email.', 'exito');
   } else {
     mostrarNotificacion('⚠️ Pedido registrado. Te contactaremos.', 'info');
