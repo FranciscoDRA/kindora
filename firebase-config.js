@@ -2,13 +2,14 @@
 
 // Configuración de Firebase
 export const firebaseConfig = {
-  apiKey: "AIzaSyD261TL6XuBp12rUNCcMKyP7_nMaCVYc7Y",
-  authDomain: "patofelting-b188f.firebaseapp.com",
-  databaseURL: "https://patofelting-b188f-default-rtdb.firebaseio.com",
-  projectId: "patofelting-b188f",
-  storageBucket: "patofelting-b188f.appspot.com",
-  messagingSenderId: "858377467588",
-  appId: "1:858377467588:web:cade9de05ebccc17f87b91"
+  apiKey: "AIzaSyAeSf5uQRq0qcE5sF2fTW1WTnvNEYs2wn8",
+  authDomain: "kindora-47c88.firebaseapp.com",
+  databaseURL: "https://kindora-47c88-default-rtdb.firebaseio.com",
+  projectId: "kindora-47c88",
+  storageBucket: "kindora-47c88.firebasestorage.app",
+  messagingSenderId: "638528530869",
+  appId: "1:638528530869:web:8de9d1ed1f0d711114d1fc",
+  measurementId: "G-DKF3TTCSEC"
 };
 
 // URL para fetch directo (fallback cuando no hay SDK)
