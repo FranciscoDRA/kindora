@@ -1621,40 +1621,127 @@ footer {
 }
 
 
-/* Para que las medidas se vean en columnas */
-.modal-detalles {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  align-items: baseline;
-  margin: 12px 0;
-  padding: 12px 0;
-  border-top: 1px solid #ede5d8;
-  border-bottom: 1px solid #ede5d8;
+/* ===============================
+   MENÚ HAMBURGUESA - CORRECCIÓN
+   =============================== */
+/* ── MENÚ HAMBURGUESA ── */
+.hamburguesa {
+  display: none;
 }
 
-.modal-detalles span {
-  font-weight: 600;
-  color: #3b2a1a;
-  min-width: 70px;
+@media (max-width: 768px) {
+  .hamburguesa {
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: none;
+    font-size: 22px;
+    cursor: pointer;
+    color: var(--brown);
+    padding: 8px;
+  }
+
+  .hamburguesa:hover {
+    color: var(--sepia);
+  }
+
+  /* Sobreescribir el display:none del bloque anterior */
+  .nav-links {
+    display: flex !important;
+    position: fixed;
+    top: 68px;
+    left: -100%;
+    width: 100%;
+    height: calc(100vh - 68px);
+    background: rgba(249, 244, 238, 0.98);
+    backdrop-filter: blur(12px);
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 32px;
+    padding: 48px 24px;
+    transition: left 0.3s ease;
+    z-index: 99;
+    list-style: none;
+  }
+
+  .nav-links.open {
+    left: 0;
+  }
+
+  .nav-links a {
+    font-size: 18px;
+    padding: 8px 0;
+    text-align: center;
+    width: 100%;
+  }
+}
+/* Ocultar el menú en mobile por defecto */
+@media (max-width: 768px) {
+  .nav-links {
+    position: fixed;
+    top: 68px;
+    left: -100%;
+    width: 100%;
+    height: calc(100vh - 68px);
+    background: rgba(249, 244, 238, 0.98);
+    backdrop-filter: blur(12px);
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 32px;
+    padding: 48px 24px;
+    transition: left 0.3s ease;
+    z-index: 99;
+    margin: 0;
+    list-style: none;
+  }
+
+  .nav-links.open {
+    left: 0;
+  }
+
+  .nav-links li {
+    margin: 0;
+  }
+
+  .nav-links a {
+    font-size: 18px;
+    padding: 8px 0;
+    display: block;
+  }
+
+  .hamburguesa {
+    display: block !important;
+    background: none;
+    border: none;
+    font-size: 22px;
+    cursor: pointer;
+    color: var(--brown);
+    padding: 8px;
+    transition: all 0.2s ease;
+  }
+
+  .hamburguesa:hover {
+    color: var(--sepia);
+  }
+
+  /* Asegurar que el botón esté visible */
+  .nav-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  /* Cerrar menú al hacer clic en un enlace */
+  .nav-links a {
+    width: 100%;
+    text-align: center;
+  }
 }
 
-.modal-detalles {
-  gap: 8px;
-}
-
-/* Si querés que CADA medida tenga su propia "cajita" */
-.modal-detalles {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 16px;
-}
-
-.modal-detalles span:first-child {
-  width: 100%;
-  margin-bottom: 8px;
-}
-
-.modal-detalles br {
+/* Mostrar hamburguesa solo en móvil (por defecto oculta) */
+.hamburguesa {
   display: none;
 }
