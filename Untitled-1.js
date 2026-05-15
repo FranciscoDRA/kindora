@@ -863,14 +863,15 @@ async function enviarCorreoCompra(datosCompra) {
         </div>`).join('');
 
     const templateParams = {
-      order_id: datosCompra.orderId,
-      order_date: new Date().toLocaleString('es-UY'),
-      total_amount: datosCompra.total,
-      client_name: datosCompra.cliente.nombre,
-      client_email: datosCompra.cliente.email,
-      client_phone: datosCompra.cliente.telefono || '—',
-      client_pickup: datosCompra.cliente.pickup || '—',   // ← agregar esta línea
-      products: productosHtml,
+      order_id:            datosCompra.orderId,
+      order_date:          new Date().toLocaleString('es-UY'),
+      total_amount:        datosCompra.total,
+      total_con_recargo:   datosCompra.totalConRecargo,
+      client_name:         datosCompra.cliente.nombre,
+      client_email:        datosCompra.cliente.email,
+      client_phone:        datosCompra.cliente.telefono || '—',
+      client_pickup:       datosCompra.cliente.pickup || '—',
+      products:            productosHtml,
     };
 
     await emailjs.send(EMAILJS_SERVICE_ID, TEMPLATE_COMPRA, templateParams);
@@ -885,20 +886,22 @@ async function confirmarPedidoConEmail(datosCliente) {
   if (!carrito || carrito.length === 0) return;
   
   const totalNumerico = carrito.reduce((sum, i) => sum + (i.precio || 0) * (i.cantidad || 0), 0);
+  const totalConRecargo = Math.round(totalNumerico * 1.10);
   const orderId = 'KIN-' + Date.now().toString().slice(-8);
 
   const datosCompra = {
     orderId,
     total: totalNumerico.toLocaleString('es-UY'),
+    totalConRecargo: totalConRecargo.toLocaleString('es-UY'),
     cliente: {
       nombre: datosCliente.nombre || 'Cliente',
       email: datosCliente.email || '',
       telefono: datosCliente.telefono || '—',
-      pickup: datosCliente.pickup || '—'   // ← agregar esta línea
+      pickup: datosCliente.pickup || '—'
     },
     productos: [...carrito],
     fecha: new Date().toISOString(),
-    estado: 'pendiente_confirmacion'
+    estado: 'pendiente_pago'
   };
 
   try {
@@ -1017,19 +1020,45 @@ function renderCheckout() {
       </div>
       <button id="ck-next" style="margin-top:18px;width:100%;padding:13px;background:#3b2a1a;color:#fff;border:none;border-radius:8px;cursor:pointer;">Continuar al pago →</button>`;
   } else if (checkoutStep === 2) {
-    const wspMsg = encodeURIComponent(
-      `Hola Kindora! 👋 Quiero enviar mi comprobante.\n\nPedido:\n${carrito.map(i => `• ${i.nombre} x${i.cantidad}`).join('\n')}\n\nTotal: $U ${totalStr}\n\nAdjunto el comprobante.`
-    );
+    const totalConRecargo = Math.round(total * 1.10);
+    const totalConRecargoStr = totalConRecargo.toLocaleString('es-UY');
+
     contenido = `
-      <div style="font-size:0.82rem;color:#7a6450;margin-bottom:16px;">Realizá la transferencia y envianos el comprobante por WhatsApp.</div>
-      <div style="background:#f5f0e8;border-radius:10px;padding:16px;margin-bottom:16px;">
-        <div class="mt-row"><span>Banco</span><strong>${CUENTA_BANCO}</strong></div>
-        <div class="mt-row"><span>N° de cuenta</span><strong>${CUENTA_NUMERO}</strong></div>
-        <div class="mt-row"><span>Titular</span><strong>${CUENTA_TITULAR}</strong></div>
-        <div class="mt-total"><span>Total a transferir</span><strong>$U ${totalStr}</strong></div>
+      <div style="font-size:0.82rem;color:#7a6450;margin-bottom:16px;">
+        Revisá el resumen de tu pedido antes de confirmar.
       </div>
-      <a href="https://wa.me/${WHATSAPP_NUMERO}?text=${wspMsg}" target="_blank" class="btn-whatsapp">Enviar comprobante por WhatsApp</a>
-      <button id="ck-next" style="width:100%;padding:13px;background:#2D6A4F;color:#fff;border:none;border-radius:8px;cursor:pointer;">✓ Ya realicé la transferencia</button>`;
+
+      <div style="background:#f5f0e8;border-radius:10px;padding:16px;margin-bottom:14px;">
+        <div style="font-size:0.78rem;letter-spacing:0.1em;text-transform:uppercase;color:#9a8878;margin-bottom:12px;">Resumen</div>
+        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #e8ddd0;font-size:0.88rem;">
+          <span style="color:#7a6450;">Subtotal</span>
+          <span style="color:#3b2a1a;">$U ${totalStr}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #e8ddd0;font-size:0.88rem;">
+          <span style="color:#7a6450;">Recargo Mercado Pago (10%)</span>
+          <span style="color:#3b2a1a;">$U ${Math.round(total * 0.10).toLocaleString('es-UY')}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;padding:10px 0 4px;font-size:1rem;">
+          <span style="color:#9a8878;font-size:0.78rem;letter-spacing:0.08em;text-transform:uppercase;">Total a pagar</span>
+          <strong style="color:#3b2a1a;font-size:1.2rem;">$U ${totalConRecargoStr}</strong>
+        </div>
+      </div>
+
+      <div style="display:flex;justify-content:space-between;padding:8px 0;font-size:0.88rem;margin-bottom:14px;">
+        <span style="color:#7a6450;">Punto de retiro</span>
+        <strong style="color:#3b2a1a;">Pick Up ${checkoutDatosCliente.pickup || '—'}</strong>
+      </div>
+
+      <div style="background:#eef6f1;border:1px solid #c3ddd0;border-radius:10px;padding:14px 16px;margin-bottom:16px;">
+        <p style="font-size:0.82rem;color:#2D6A4F;margin:0;line-height:1.6;">
+          📧 Al confirmar te llegará un email con tu pedido.<br>
+          <strong>Nosotras te enviamos el link de pago de Mercado Pago en menos de 24 horas hábiles.</strong>
+        </p>
+      </div>
+
+      <button id="ck-next" style="width:100%;padding:13px;background:#3b2a1a;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:0.9rem;">
+        Confirmar pedido →
+      </button>`;
   } else if (checkoutStep === 3) {
     contenido = `
       <div style="text-align:center;padding:16px 0;">
