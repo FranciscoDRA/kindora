@@ -147,8 +147,8 @@ function procesarDatosProductos(data) {
           : (p.imagenes ? String(p.imagenes).split(',').map(x => x.trim()).filter(Boolean) : []),
         adicionales: p.adicionales ? String(p.adicionales).trim() : '',
         alto:        parseFloat(String(p.alto || '').replace(',', '.')) || null,
-ancho:       parseFloat(String(p.ancho || '').replace(',', '.')) || null,
-profundidad: parseFloat(String(p.profundidad || '').replace(',', '.')) || null,
+        ancho:       parseFloat(String(p.ancho || '').replace(',', '.')) || null,
+        profundidad: parseFloat(String(p.profundidad || '').replace(',', '.')) || null,
         categoria: p.categoria ? String(p.categoria).trim().toLowerCase() : 'otros',
         vendido: p.vendido === true || String(p.vendido).toLowerCase() === 'true',
         estado: p.estado ? String(p.estado).trim() : '',
@@ -628,7 +628,7 @@ function mostrarModalProducto(p) {
     carruselHtml += `<img src="${PLACEHOLDER_IMAGE}" class="modal-img-principal" alt="${p.nombre}" loading="lazy">`;
   }
   
- modalContenido.innerHTML = `
+  modalContenido.innerHTML = `
   <button class="cerrar-modal" aria-label="Cerrar modal">&times;</button>
   <div class="modal-flex">
     <div class="modal-carrusel">${carruselHtml}</div>
@@ -746,10 +746,8 @@ function renderizarCarrito() {
       const item = carrito.find(i => i.id === id);
       if (item && item.cantidad > 1) {
         if (item.reservaKey) {
-          // Actualizar reserva: devolver 1 unidad y reducir cantidad
           await liberarReserva(item.reservaKey, id, 1);
           item.cantidad--;
-          // Actualizar reserva con nueva cantidad
           const key = getDbKeyFromId(id);
           await db.ref(`reservas/${item.reservaKey}`).update({
             cantidad: item.cantidad,
@@ -757,7 +755,6 @@ function renderizarCarrito() {
           });
           programarExpiracionReserva(item.reservaKey, { id, nombre: item.nombre }, 0);
         } else {
-          // Fallback
           const key = getDbKeyFromId(id);
           await db.ref(`productos/${key}/stock`).transaction(stock => (stock || 0) + 1);
           item.cantidad--;
@@ -777,7 +774,6 @@ function renderizarCarrito() {
       const prod = productos.find(p => p.id === id);
       if (item && prod && prod.stock > 0) {
         if (item.reservaKey) {
-          // Actualizar reserva: reservar 1 unidad más
           const key = getDbKeyFromId(id);
           const { committed } = await db.ref(`productos/${key}/stock`).transaction(stock => {
             if (stock < 1) return;
@@ -1069,7 +1065,6 @@ function renderCheckout() {
         
         await confirmarPedidoConEmail(checkoutDatosCliente);
         
-        // Eliminar reservas de Firebase (ya se compraron)
         const promesas = carrito.map(item => {
           if (item.reservaKey && HAS_FIREBASE_SDK) {
             if (timersExpiracion[item.reservaKey]) {
@@ -1139,18 +1134,21 @@ window.subscribeNewsletter = function() {
 function initShowcaseCarousel() {
   const PLACEHOLDER = window.PLACEHOLDER_IMAGE || 'https://placehold.co/480x640/EDE4D6/4A3728?text=Kindora';
   const INTERVAL = 4800;
-  const DEMO_ITEMS = [
-    { nombre: 'Funda Caoba Premium', categoria: 'Fundas', precio: 1890, img: 'img/WhatsApp%20Image%202026-04-28%20at%2010.45.47.jpeg' },
-    { nombre: 'Funda Caoba Premium', categoria: 'Fundas', precio: 1890, img: 'img/WhatsApp Image 2026-04-28 at 10.46.08.jpeg' },
-    { nombre: 'Funda Caoba Premium', categoria: 'Fundas', precio: 1890, img: 'img/WhatsApp Image 2026-04-28 at 10.46.16.jpeg' },
-  ];
-  const raw = (productos && productos.length > 0) ? productos.slice(0, 8) : DEMO_ITEMS;
-  const items = raw.map(p => ({
+  
+  if (!productos || productos.length === 0) {
+    console.log('⏳ Esperando productos para el carrousel...');
+    setTimeout(initShowcaseCarousel, 1000);
+    return;
+  }
+  
+  const items = productos.slice(0, 17).map(p => ({
     nombre: p.nombre || '',
     categoria: p.categoria ? p.categoria.charAt(0).toUpperCase() + p.categoria.slice(1) : 'Colección',
     precio: p.precio || 0,
-    img: (p.imagenes && p.imagenes[0]) || p.img || PLACEHOLDER,
+    id: p.id,
+    img: (p.imagenes && p.imagenes[0]) || PLACEHOLDER,
   }));
+  
   if (!items.length) return;
   
   const stage = document.getElementById('showcase-stage');
@@ -1161,6 +1159,7 @@ function initShowcaseCarousel() {
   const priceEl = document.getElementById('sc-price');
   const ctrEl = document.getElementById('sc-counter');
   const progEl = document.getElementById('sc-progress');
+  
   if (!stage || !infoEl) return;
   
   stage.querySelectorAll('.showcase-card').forEach(c => c.remove());
@@ -1171,15 +1170,18 @@ function initShowcaseCarousel() {
     const card = document.createElement('div');
     card.className = 'showcase-card no-transition';
     card.dataset.i = i;
+    card.dataset.id = item.id;
     const img = document.createElement('img');
     img.src = item.img;
     img.alt = item.nombre;
     img.onerror = () => { img.src = PLACEHOLDER; };
     card.appendChild(img);
+    
     card.addEventListener('click', () => {
-      if (card.dataset.state === 'prev') goTo(cur - 1);
-      else if (card.dataset.state === 'next') goTo(cur + 1);
+      const producto = productos.find(p => p.id == item.id);
+      if (producto) mostrarModalProducto(producto);
     });
+    
     stage.appendChild(card);
   });
   
@@ -1254,6 +1256,8 @@ function initShowcaseCarousel() {
   requestAnimationFrame(() => { stage.querySelectorAll('.showcase-card.no-transition').forEach(c => c.classList.remove('no-transition')); });
   autoTimer = setInterval(() => goTo(cur + 1), INTERVAL);
   resetProgress();
+  
+  console.log('🎠 Carrousel inicializado con', items.length, 'productos');
 }
 
 // ===============================
@@ -1331,7 +1335,6 @@ function inicializarEventos() {
   document.querySelector('.carrito-overlay')?.addEventListener('click', toggleCarrito);
   document.querySelector('.cerrar-carrito')?.addEventListener('click', toggleCarrito);
   
-  // Vaciar carrito - CORREGIDO
   document.querySelector('.boton-vaciar-carrito')?.addEventListener('click', async () => {
     await vaciarCarrito();
   });
@@ -1375,8 +1378,22 @@ function inicializarEventos() {
     aplicarFiltros();
   });
   
-  document.querySelector('.hamburguesa')?.addEventListener('click', () => { 
-    document.getElementById('menu')?.classList.toggle('open'); 
+  // MENÚ HAMBURGUESA - Abrir/cerrar
+ document.querySelector('.hamburguesa')?.addEventListener('click', () => { 
+  const menu = document.getElementById('menu');
+  if (menu) {
+    menu.classList.toggle('open');
+    console.log('Menú abierto:', menu.classList.contains('open'));
+  }
+});
+
+
+  
+  // Cerrar menú al hacer clic en un enlace
+  document.querySelectorAll('#menu a').forEach(link => {
+    link.addEventListener('click', () => {
+      document.getElementById('menu')?.classList.remove('open');
+    });
   });
   
   document.querySelector('.boton-flotante')?.addEventListener('click', () => { 
