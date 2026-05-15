@@ -1,5 +1,3 @@
-// firebase-config.js — sin módulos ES, script clásico
-
 (function () {
   const firebaseConfig = {
     apiKey: "AIzaSyAeSf5uQRq0qcE5sF2fTW1WTnvNEYs2wn8",
@@ -8,12 +6,11 @@
     projectId: "kindora-47c88",
     storageBucket: "kindora-47c88.firebasestorage.app",
     messagingSenderId: "638528530869",
-    appId: "1:638528530869:web:8de9d1ed1f0d711114d1fc",
-    measurementId: "G-DKF3TTCSEC"
+    appId: "1:638528530869:web:8de9d1ed1f0d711114d1fc"
   };
 
   if (typeof firebase === 'undefined') {
-    console.error('❌ Firebase SDK no encontrado. Verificá que los scripts de Firebase estén cargados antes de firebase-config.js');
+    console.error('❌ Firebase SDK no encontrado.');
     return;
   }
 
@@ -21,19 +18,9 @@
     if (!firebase.apps.length) {
       firebase.initializeApp(firebaseConfig);
     }
-
-    window.firebaseDb = firebase.database();
-    window.firebaseAuth = firebase.auth();
-
-    console.log('✅ Firebase inicializado. DB y Auth disponibles en window.');
-    console.log('   - window.firebaseDb:', !!window.firebaseDb);
-    console.log('   - window.firebaseAuth:', !!window.firebaseAuth);
-    
-    // Opcional: Listener para estado de autenticación
-    window.firebaseAuth.onAuthStateChanged(user => {
-      console.log('🔐 Usuario Firebase:', user ? `Conectado (${user.email})` : 'Desconectado');
-    });
-    
+    window.firebaseDb   = firebase.database();
+    window.firebaseAuth = null;
+    console.log('✅ Firebase DB listo');
   } catch (e) {
     console.error('❌ Error inicializando Firebase:', e);
   }
