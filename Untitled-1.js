@@ -9,6 +9,7 @@ const PRODUCTOS_POR_PAGINA = 8;
 const LS_CARRITO_KEY = 'kindora_carrito';
 const CSV_URL = window.SHEET_CSV_URL;
 const PLACEHOLDER_IMAGE = window.PLACEHOLDER_IMAGE;
+const ADMIN_EMAIL = 'kindorauy@gmail.com';  // ← Email del administrador
 
 // ===============================
 // CONFIGURACIÓN EMAILJS
@@ -854,7 +855,7 @@ async function enviarCorreoContacto(formData) {
   }
 }
 
-async function enviarCorreoCompra(datosCompra) {
+async function enviarCorreoCompra(datosCompra, esParaAdmin = false) {
   try {
     const productosHtml = datosCompra.productos.map(p => `
         <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #eee;">
@@ -862,22 +863,39 @@ async function enviarCorreoCompra(datosCompra) {
           <strong>$U ${((p.precio || 0) * (p.cantidad || 0)).toLocaleString('es-UY')}</strong>
         </div>`).join('');
 
-    const templateParams = {
-      order_id:            datosCompra.orderId,
-      order_date:          new Date().toLocaleString('es-UY'),
-      metodo_pago:         datosCompra.metodoPago || 'transferencia',
-      subtotal:            datosCompra.subtotal,
-      total_amount:        datosCompra.total,
-      total_con_recargo:   datosCompra.totalConRecargo,
-      client_name:         datosCompra.cliente.nombre,
-      client_email:        datosCompra.cliente.email,
-      client_phone:        datosCompra.cliente.telefono || '—',
-      client_pickup:       datosCompra.cliente.pickup || '—',
-      products:            productosHtml,
-      banco:               CUENTA_BANCO,
-      cuenta_numero:       CUENTA_NUMERO,
-      cuenta_titular:      CUENTA_TITULAR,
-    };
+    let templateParams;
+    
+    if (esParaAdmin) {
+      // Email para el ADMIN (kindorauy@gmail.com) - con todos los detalles
+      templateParams = {
+        to_email:          ADMIN_EMAIL,
+        order_id:          datosCompra.orderId,
+        order_date:        new Date().toLocaleString('es-UY'),
+        metodo_pago:       datosCompra.metodoPago || 'transferencia',
+        subtotal:          datosCompra.subtotal,
+        total_amount:      datosCompra.total,
+        total_con_recargo: datosCompra.totalConRecargo,
+        client_name:       datosCompra.cliente.nombre,
+        client_email:      datosCompra.cliente.email,
+        client_phone:      datosCompra.cliente.telefono || '—',
+        client_pickup:     datosCompra.cliente.pickup || '—',
+        products:          productosHtml,
+        banco:             CUENTA_BANCO,
+        cuenta_numero:     CUENTA_NUMERO,
+        cuenta_titular:    CUENTA_TITULAR,
+        es_admin:          'true',
+      };
+    } else {
+      // Email para el CLIENTE - solo confirmación simple
+      templateParams = {
+        to_email:          datosCompra.cliente.email,
+        order_id:          datosCompra.orderId,
+        client_name:       datosCompra.cliente.nombre,
+        client_pickup:     datosCompra.cliente.pickup || '—',
+        total_con_recargo: datosCompra.totalConRecargo,
+        es_admin:          'false',
+      };
+    }
 
     await emailjs.send(EMAILJS_SERVICE_ID, TEMPLATE_COMPRA, templateParams);
     return { success: true };
@@ -925,9 +943,14 @@ async function confirmarPedidoConEmail(datosCliente) {
   }
 
   mostrarNotificacion('Enviando confirmación...', 'info');
-  const result = await enviarCorreoCompra(datosCompra);
+  
+  // Enviar email al CLIENTE
+  const resultCliente = await enviarCorreoCompra(datosCompra, false);
+  
+  // Enviar email al ADMIN
+  const resultAdmin = await enviarCorreoCompra(datosCompra, true);
 
-  if (result.success) {
+  if (resultCliente.success && resultAdmin.success) {
     mostrarNotificacion('✅ Pedido confirmado. Te llegará un email.', 'exito');
   } else {
     mostrarNotificacion('⚠️ Pedido registrado. Te contactaremos.', 'info');
