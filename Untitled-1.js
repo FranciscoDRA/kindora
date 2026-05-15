@@ -869,7 +869,7 @@ async function enviarCorreoCompra(datosCompra) {
       client_name: datosCompra.cliente.nombre,
       client_email: datosCompra.cliente.email,
       client_phone: datosCompra.cliente.telefono || '—',
-      client_address: datosCompra.cliente.direccion || '—',
+      client_pickup: datosCompra.cliente.pickup || '—',   // ← agregar esta línea
       products: productosHtml,
     };
 
@@ -894,7 +894,7 @@ async function confirmarPedidoConEmail(datosCliente) {
       nombre: datosCliente.nombre || 'Cliente',
       email: datosCliente.email || '',
       telefono: datosCliente.telefono || '—',
-      direccion: datosCliente.direccion || '—'
+      pickup: datosCliente.pickup || '—'   // ← agregar esta línea
     },
     productos: [...carrito],
     fecha: new Date().toISOString(),
@@ -998,8 +998,22 @@ function renderCheckout() {
         <input id="ck-nombre" placeholder="Nombre completo *" value="${checkoutDatosCliente.nombre || ''}" style="padding:11px 14px;border:1.5px solid #d4c5b0;border-radius:8px;">
         <input id="ck-email" type="email" placeholder="Email *" value="${checkoutDatosCliente.email || ''}" style="padding:11px 14px;border:1.5px solid #d4c5b0;border-radius:8px;">
         <input id="ck-telefono" placeholder="Teléfono (opcional)" value="${checkoutDatosCliente.telefono || ''}" style="padding:11px 14px;border:1.5px solid #d4c5b0;border-radius:8px;">
-        <input id="ck-direccion" placeholder="Dirección de entrega (opcional)" value="${checkoutDatosCliente.direccion || ''}" style="padding:11px 14px;border:1.5px solid #d4c5b0;border-radius:8px;">
-        <p id="ck-error" style="display:none;color:#c0392b;">* Nombre y email obligatorios</p>
+        
+        <div style="background:#f5f0e8;border-radius:8px;padding:14px 16px;border:1.5px solid #d4c5b0;">
+          <p style="font-size:0.8rem;font-weight:600;color:#3b2a1a;margin-bottom:10px;letter-spacing:0.06em;text-transform:uppercase;">📍 ¿Dónde preferís retirar?</p>
+          <div style="display:flex;gap:10px;">
+            <label style="flex:1;display:flex;align-items:center;gap:8px;padding:10px 14px;border:1.5px solid #d4c5b0;border-radius:8px;cursor:pointer;background:white;transition:all 0.2s;" id="label-prado">
+              <input type="radio" name="ck-pickup" id="ck-pickup-prado" value="Prado" ${checkoutDatosCliente.pickup === 'Prado' ? 'checked' : ''} style="accent-color:#3b2a1a;">
+              <span style="font-size:0.85rem;color:#3b2a1a;font-weight:500;">Pick Up Prado</span>
+            </label>
+            <label style="flex:1;display:flex;align-items:center;gap:8px;padding:10px 14px;border:1.5px solid #d4c5b0;border-radius:8px;cursor:pointer;background:white;transition:all 0.2s;" id="label-pocitos">
+              <input type="radio" name="ck-pickup" id="ck-pickup-pocitos" value="Pocitos" ${checkoutDatosCliente.pickup === 'Pocitos' ? 'checked' : ''} style="accent-color:#3b2a1a;">
+              <span style="font-size:0.85rem;color:#3b2a1a;font-weight:500;">Pick Up Pocitos</span>
+            </label>
+          </div>
+        </div>
+
+        <p id="ck-error" style="display:none;color:#c0392b;">* Nombre, email y punto de retiro son obligatorios</p>
       </div>
       <button id="ck-next" style="margin-top:18px;width:100%;padding:13px;background:#3b2a1a;color:#fff;border:none;border-radius:8px;cursor:pointer;">Continuar al pago →</button>`;
   } else if (checkoutStep === 2) {
@@ -1040,16 +1054,16 @@ function renderCheckout() {
         const nombre = document.getElementById('ck-nombre')?.value.trim();
         const email = document.getElementById('ck-email')?.value.trim();
         const telefono = document.getElementById('ck-telefono')?.value.trim();
-        const direccion = document.getElementById('ck-direccion')?.value.trim();
+        const pickup = document.querySelector('input[name="ck-pickup"]:checked')?.value || '';
         const errorEl = document.getElementById('ck-error');
         
-        if (!nombre || !email) {
+        if (!nombre || !email || !pickup) {
           if (errorEl) errorEl.style.display = 'block';
           return;
         }
         if (errorEl) errorEl.style.display = 'none';
         
-        checkoutDatosCliente = { nombre, email, telefono, direccion };
+        checkoutDatosCliente = { nombre, email, telefono, pickup };
         checkoutStep = 2;
         renderCheckout();
       };
@@ -1386,7 +1400,6 @@ function inicializarEventos() {
     console.log('Menú abierto:', menu.classList.contains('open'));
   }
 });
-
 
   
   // Cerrar menú al hacer clic en un enlace
