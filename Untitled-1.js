@@ -10,7 +10,7 @@ const LS_CARRITO_KEY = 'kindora_carrito';
 const CSV_URL = window.SHEET_CSV_URL;
 const PLACEHOLDER_IMAGE = window.PLACEHOLDER_IMAGE;
 const ADMIN_EMAIL = 'kindorauy@gmail.com';  // ← Email del administrador
-
+const RESEND_API_KEY = 're_86VhK5ma_MvCpfMkefH9tmee7g1tsSHFv';
 // ===============================
 // CONFIGURACIÓN EMAILJS
 // ===============================
@@ -864,8 +864,12 @@ async function enviarCorreoCompra(datosCompra) {
     ? 'Mercado Pago (+10%)'
     : 'Transferencia bancaria';
 
+  const totalMostrar = datosCompra.metodoPago === 'mercadopago'
+    ? datosCompra.totalConRecargo
+    : datosCompra.subtotal;
+
   try {
-    // ── EMAIL AL ADMIN via EmailJS (template existente) ──
+    // ── EMAIL AL ADMIN via EmailJS ──
     await emailjs.send(EMAILJS_SERVICE_ID, TEMPLATE_COMPRA, {
       order_id:       datosCompra.orderId,
       order_date:     new Date().toLocaleString('es-UY'),
@@ -876,33 +880,39 @@ async function enviarCorreoCompra(datosCompra) {
       products:       productosTexto,
       payment_method: metodoTexto,
       subtotal:       datosCompra.subtotal,
-      total:          datosCompra.metodoPago === 'mercadopago'
-                        ? datosCompra.totalConRecargo
-                        : datosCompra.subtotal,
+      total:          totalMostrar,
       to_email:       ADMIN_EMAIL,
     });
 
-    // ── EMAIL AL CLIENTE via Web3Forms (gratis, sin template) ──
-    await fetch('https://api.web3forms.com/submit', {
+    // ── EMAIL AL CLIENTE via Resend ──
+    await fetch('https://api.resend.com/emails', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${RESEND_API_KEY}`
+      },
       body: JSON.stringify({
-        access_key: 'f81da6ac-3744-4c5b-9c57-b6a8de168c78',
-        subject:    `Tu pedido Kindora N° ${datosCompra.orderId} fue registrado ✓`,
-        from_name:  'Kindora',
-        to:         datosCompra.cliente.email,
-        replyto:    ADMIN_EMAIL,
-        message:
+        from:    'Kindora <onboarding@resend.dev>',
+        to:      datosCompra.cliente.email,
+        subject: `Tu pedido Kindora N° ${datosCompra.orderId} fue registrado ✓`,
+        text:
 `Hola ${datosCompra.cliente.nombre},
 
 ¡Gracias por tu compra en Kindora! 🎉
 
 Tu pedido N° ${datosCompra.orderId} fue registrado correctamente.
-En breve te estaremos contactando para coordinar los detalles.
 
+--- TU PEDIDO ---
+${productosTexto}
+
+Método de pago: ${metodoTexto}
+Total: $U ${totalMostrar}
+Punto de retiro: Pick Up ${datosCompra.cliente.pickup}
+
+En breve te estaremos contactando para coordinar los detalles.
 Cualquier consulta escribinos a ${ADMIN_EMAIL}.
 
-— Valentina y Agustina, Kindora`,
+— Valentina y Agustina, Kindora`
       })
     });
 
