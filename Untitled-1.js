@@ -868,47 +868,41 @@ async function enviarCorreoCompra(datosCompra) {
     ? datosCompra.totalConRecargo
     : datosCompra.subtotal;
 
-  try {
-    // ── EMAIL AL ADMIN ──
-    await emailjs.send(EMAILJS_SERVICE_ID, TEMPLATE_COMPRA, {
-      order_id:          datosCompra.orderId,
-      order_date:        new Date().toLocaleString('es-UY'),
-      client_name:       datosCompra.cliente.nombre,
-      client_email:      datosCompra.cliente.email,
-      client_phone:      datosCompra.cliente.telefono || '—',
-      client_pickup:     datosCompra.cliente.pickup,
-      products:          productosTexto,
-      metodo_pago:       metodoTexto,
-      subtotal:          datosCompra.subtotal,
-      total_con_recargo: datosCompra.totalConRecargo,
-      recargo:           datosCompra.totalConRecargo,
-      to_email:          ADMIN_EMAIL,
-      es_admin:          'true',
-    });
+  // ── EMAIL AL ADMIN ──
+await emailjs.send(EMAILJS_SERVICE_ID, TEMPLATE_COMPRA, {
+  name:              'Kindora',   // ← agregá esto
+  order_id:          datosCompra.orderId,
+  order_date:        new Date().toLocaleString('es-UY'),
+  client_name:       datosCompra.cliente.nombre,
+  client_email:      datosCompra.cliente.email,
+  client_phone:      datosCompra.cliente.telefono || '—',
+  client_pickup:     datosCompra.cliente.pickup,
+  products:          productosTexto,
+  metodo_pago:       metodoTexto,
+  subtotal:          datosCompra.subtotal,
+  total_con_recargo: datosCompra.totalConRecargo,
+  recargo:           datosCompra.totalConRecargo,
+  to_email:          ADMIN_EMAIL,
+  es_admin:          'true',
+});
 
-    // ── EMAIL AL CLIENTE ──
-    await emailjs.send(EMAILJS_SERVICE_ID, TEMPLATE_COMPRA, {
-      order_id:          datosCompra.orderId,
-      order_date:        new Date().toLocaleString('es-UY'),
-      client_name:       datosCompra.cliente.nombre,
-      client_email:      datosCompra.cliente.email,
-      client_phone:      datosCompra.cliente.telefono || '—',
-      client_pickup:     datosCompra.cliente.pickup,
-      products:          productosTexto,
-      metodo_pago:       metodoTexto,
-      subtotal:          datosCompra.subtotal,
-      total_con_recargo: datosCompra.totalConRecargo,
-      recargo:           datosCompra.totalConRecargo,
-      to_email:          datosCompra.cliente.email,
-      es_admin:          'false',
-    });
-
-    return { success: true };
-
-  } catch (error) {
-    console.error('Error EmailJS:', error);
-    return { success: false, error };
-  }
+// ── EMAIL AL CLIENTE ──
+await emailjs.send(EMAILJS_SERVICE_ID, TEMPLATE_COMPRA, {
+  name:              'Kindora',   // ← agregá esto
+  order_id:          datosCompra.orderId,
+  order_date:        new Date().toLocaleString('es-UY'),
+  client_name:       datosCompra.cliente.nombre,
+  client_email:      datosCompra.cliente.email,
+  client_phone:      datosCompra.cliente.telefono || '—',
+  client_pickup:     datosCompra.cliente.pickup,
+  products:          productosTexto,
+  metodo_pago:       metodoTexto,
+  subtotal:          datosCompra.subtotal,
+  total_con_recargo: datosCompra.totalConRecargo,
+  recargo:           datosCompra.totalConRecargo,
+  to_email:          datosCompra.cliente.email,
+  es_admin:          'false',
+});
 
     // ── EMAIL AL CLIENTE con agradecimiento ──
     await emailjs.send(EMAILJS_SERVICE_ID, TEMPLATE_COMPRA, {
