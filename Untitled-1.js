@@ -927,8 +927,6 @@ Cualquier consulta escribinos a ${ADMIN_EMAIL}.
   }
 }
   
- 
-
 async function confirmarPedidoConEmail(datosCliente) {
   if (!carrito || carrito.length === 0) return;
   
@@ -942,7 +940,7 @@ async function confirmarPedidoConEmail(datosCliente) {
     orderId,
     metodoPago: datosCliente.metodoPago || 'transferencia',
     subtotal: totalNumerico.toLocaleString('es-UY'),
-    total: totalAPagar.toLocaleString('es-UY'),
+    totalAPagar: totalAPagar.toLocaleString('es-UY'),
     totalConRecargo: totalConRecargo.toLocaleString('es-UY'),
     cliente: {
       nombre: datosCliente.nombre || 'Cliente',
@@ -970,9 +968,9 @@ async function confirmarPedidoConEmail(datosCliente) {
   const result = await enviarCorreoCompra(datosCompra);
 
   if (result.success) {
-    mostrarNotificacion('✅ Pedido confirmado. Te llegará un email.', 'exito');
+    mostrarNotificacion('✅ Pedido confirmado. Revisá tu email.', 'exito');
   } else {
-    mostrarNotificacion('⚠️ Pedido registrado. Te contactaremos.', 'info');
+    mostrarNotificacion('⚠️ Pedido registrado. Te contactaremos pronto.', 'info');
   }
 }
 
@@ -1501,8 +1499,7 @@ function init() {
 }
 
 // ===============================
-// EVENTOS
-// ===============================
+// EVENTOS// ===============================
 function inicializarEventos() {
   document.getElementById('carrito-btn-main')?.addEventListener('click', toggleCarrito);
   document.querySelector('.carrito-overlay')?.addEventListener('click', toggleCarrito);
@@ -1552,14 +1549,13 @@ function inicializarEventos() {
   });
   
   // MENÚ HAMBURGUESA - Abrir/cerrar
- document.querySelector('.hamburguesa')?.addEventListener('click', () => { 
-  const menu = document.getElementById('menu');
-  if (menu) {
-    menu.classList.toggle('open');
-    console.log('Menú abierto:', menu.classList.contains('open'));
-  }
-});
-
+  document.querySelector('.hamburguesa')?.addEventListener('click', () => { 
+    const menu = document.getElementById('menu');
+    if (menu) {
+      menu.classList.toggle('open');
+      console.log('Menú abierto:', menu.classList.contains('open'));
+    }
+  });
   
   // Cerrar menú al hacer clic en un enlace
   document.querySelectorAll('#menu a').forEach(link => {
