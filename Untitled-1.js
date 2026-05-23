@@ -869,20 +869,46 @@ async function enviarCorreoCompra(datosCompra) {
     : datosCompra.subtotal;
 
   try {
-    // ── EMAIL AL ADMIN con detalle completo ──
+    // ── EMAIL AL ADMIN ──
     await emailjs.send(EMAILJS_SERVICE_ID, TEMPLATE_COMPRA, {
-      order_id:       datosCompra.orderId,
-      order_date:     new Date().toLocaleString('es-UY'),
-      client_name:    datosCompra.cliente.nombre,
-      client_email:   datosCompra.cliente.email,
-      client_phone:   datosCompra.cliente.telefono || '—',
-      client_pickup:  datosCompra.cliente.pickup,
-      products:       productosTexto,
-      payment_method: metodoTexto,
-      subtotal:       datosCompra.subtotal,
-      total:          totalMostrar,
-      to_email:       ADMIN_EMAIL,
+      order_id:          datosCompra.orderId,
+      order_date:        new Date().toLocaleString('es-UY'),
+      client_name:       datosCompra.cliente.nombre,
+      client_email:      datosCompra.cliente.email,
+      client_phone:      datosCompra.cliente.telefono || '—',
+      client_pickup:     datosCompra.cliente.pickup,
+      products:          productosTexto,
+      metodo_pago:       metodoTexto,
+      subtotal:          datosCompra.subtotal,
+      total_con_recargo: datosCompra.totalConRecargo,
+      recargo:           datosCompra.totalConRecargo,
+      to_email:          ADMIN_EMAIL,
+      es_admin:          'true',
     });
+
+    // ── EMAIL AL CLIENTE ──
+    await emailjs.send(EMAILJS_SERVICE_ID, TEMPLATE_COMPRA, {
+      order_id:          datosCompra.orderId,
+      order_date:        new Date().toLocaleString('es-UY'),
+      client_name:       datosCompra.cliente.nombre,
+      client_email:      datosCompra.cliente.email,
+      client_phone:      datosCompra.cliente.telefono || '—',
+      client_pickup:     datosCompra.cliente.pickup,
+      products:          productosTexto,
+      metodo_pago:       metodoTexto,
+      subtotal:          datosCompra.subtotal,
+      total_con_recargo: datosCompra.totalConRecargo,
+      recargo:           datosCompra.totalConRecargo,
+      to_email:          datosCompra.cliente.email,
+      es_admin:          'false',
+    });
+
+    return { success: true };
+
+  } catch (error) {
+    console.error('Error EmailJS:', error);
+    return { success: false, error };
+  }
 
     // ── EMAIL AL CLIENTE con agradecimiento ──
     await emailjs.send(EMAILJS_SERVICE_ID, TEMPLATE_COMPRA, {
@@ -901,11 +927,9 @@ async function enviarCorreoCompra(datosCompra) {
 
     return { success: true };
 
-  } catch (error) {
-    console.error('Error EmailJS:', error);
-    return { success: false, error };
-  }
-}
+  } 
+  
+ 
 
 async function confirmarPedidoConEmail(datosCliente) {
   if (!carrito || carrito.length === 0) return;
