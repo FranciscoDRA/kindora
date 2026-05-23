@@ -10,7 +10,7 @@ const LS_CARRITO_KEY = 'kindora_carrito';
 const CSV_URL = window.SHEET_CSV_URL;
 const PLACEHOLDER_IMAGE = window.PLACEHOLDER_IMAGE;
 const ADMIN_EMAIL = 'kindorauy@gmail.com';  // ← Email del administrador
-const RESEND_API_KEY = 're_86VhK5ma_MvCpfMkefH9tmee7g1tsSHFv';
+
 // ===============================
 // CONFIGURACIÓN EMAILJS
 // ===============================
@@ -869,7 +869,7 @@ async function enviarCorreoCompra(datosCompra) {
     : datosCompra.subtotal;
 
   try {
-    // ── EMAIL AL ADMIN via EmailJS ──
+    // ── EMAIL AL ADMIN con detalle completo ──
     await emailjs.send(EMAILJS_SERVICE_ID, TEMPLATE_COMPRA, {
       order_id:       datosCompra.orderId,
       order_date:     new Date().toLocaleString('es-UY'),
@@ -884,42 +884,25 @@ async function enviarCorreoCompra(datosCompra) {
       to_email:       ADMIN_EMAIL,
     });
 
-    // ── EMAIL AL CLIENTE via Resend ──
-    await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${RESEND_API_KEY}`
-      },
-      body: JSON.stringify({
-        from:    'Kindora <onboarding@resend.dev>',
-        to:      datosCompra.cliente.email,
-        subject: `Tu pedido Kindora N° ${datosCompra.orderId} fue registrado ✓`,
-        text:
-`Hola ${datosCompra.cliente.nombre},
-
-¡Gracias por tu compra en Kindora! 🎉
-
-Tu pedido N° ${datosCompra.orderId} fue registrado correctamente.
-
---- TU PEDIDO ---
-${productosTexto}
-
-Método de pago: ${metodoTexto}
-Total: $U ${totalMostrar}
-Punto de retiro: Pick Up ${datosCompra.cliente.pickup}
-
-En breve te estaremos contactando para coordinar los detalles.
-Cualquier consulta escribinos a ${ADMIN_EMAIL}.
-
-— Valentina y Agustina, Kindora`
-      })
+    // ── EMAIL AL CLIENTE con agradecimiento ──
+    await emailjs.send(EMAILJS_SERVICE_ID, TEMPLATE_COMPRA, {
+      order_id:       datosCompra.orderId,
+      order_date:     new Date().toLocaleString('es-UY'),
+      client_name:    datosCompra.cliente.nombre,
+      client_email:   datosCompra.cliente.email,
+      client_phone:   '—',
+      client_pickup:  datosCompra.cliente.pickup,
+      products:       'Gracias por tu compra. En breve te estaremos contactando para coordinar los detalles.',
+      payment_method: metodoTexto,
+      subtotal:       totalMostrar,
+      total:          totalMostrar,
+      to_email:       datosCompra.cliente.email,
     });
 
     return { success: true };
 
   } catch (error) {
-    console.error('Error enviando emails:', error);
+    console.error('Error EmailJS:', error);
     return { success: false, error };
   }
 }
