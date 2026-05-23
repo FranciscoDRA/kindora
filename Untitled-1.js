@@ -868,60 +868,64 @@ async function enviarCorreoCompra(datosCompra) {
     ? datosCompra.totalConRecargo
     : datosCompra.subtotal;
 
-  // ── EMAIL AL ADMIN ──
-await emailjs.send(EMAILJS_SERVICE_ID, TEMPLATE_COMPRA, {
-  name:              'Kindora',   // ← agregá esto
-  order_id:          datosCompra.orderId,
-  order_date:        new Date().toLocaleString('es-UY'),
-  client_name:       datosCompra.cliente.nombre,
-  client_email:      datosCompra.cliente.email,
-  client_phone:      datosCompra.cliente.telefono || '—',
-  client_pickup:     datosCompra.cliente.pickup,
-  products:          productosTexto,
-  metodo_pago:       metodoTexto,
-  subtotal:          datosCompra.subtotal,
-  total_con_recargo: datosCompra.totalConRecargo,
-  recargo:           datosCompra.totalConRecargo,
-  to_email:          ADMIN_EMAIL,
-  es_admin:          'true',
-});
+  const contenidoAdmin =
+`👤 Cliente: ${datosCompra.cliente.nombre}
+📧 Email: ${datosCompra.cliente.email}
+📱 Teléfono: ${datosCompra.cliente.telefono || '—'}
+📍 Retiro: Pick Up ${datosCompra.cliente.pickup}
+💳 Pago: ${metodoTexto}
 
-// ── EMAIL AL CLIENTE ──
-await emailjs.send(EMAILJS_SERVICE_ID, TEMPLATE_COMPRA, {
-  name:              'Kindora',   // ← agregá esto
-  order_id:          datosCompra.orderId,
-  order_date:        new Date().toLocaleString('es-UY'),
-  client_name:       datosCompra.cliente.nombre,
-  client_email:      datosCompra.cliente.email,
-  client_phone:      datosCompra.cliente.telefono || '—',
-  client_pickup:     datosCompra.cliente.pickup,
-  products:          productosTexto,
-  metodo_pago:       metodoTexto,
-  subtotal:          datosCompra.subtotal,
-  total_con_recargo: datosCompra.totalConRecargo,
-  recargo:           datosCompra.totalConRecargo,
-  to_email:          datosCompra.cliente.email,
-  es_admin:          'false',
-});
+📦 Productos:
+${productosTexto}
 
-    // ── EMAIL AL CLIENTE con agradecimiento ──
+💰 Subtotal: $U ${datosCompra.subtotal}
+💸 TOTAL A COBRAR: $U ${totalMostrar}`;
+
+  const contenidoCliente =
+`¡Gracias por tu compra en Kindora! 🎉
+
+Tu pedido fue registrado correctamente.
+
+📦 Productos:
+${productosTexto}
+
+📍 Retiro: Pick Up ${datosCompra.cliente.pickup}
+💳 Pago: ${metodoTexto}
+💸 Total: $U ${totalMostrar}
+
+En breve te estaremos contactando para coordinar los detalles.
+Cualquier consulta escribinos a ${ADMIN_EMAIL}.
+
+— Valentina y Agustina, Kindora`;
+
+  try {
+    // ── EMAIL AL ADMIN ──
     await emailjs.send(EMAILJS_SERVICE_ID, TEMPLATE_COMPRA, {
-      order_id:       datosCompra.orderId,
-      order_date:     new Date().toLocaleString('es-UY'),
-      client_name:    datosCompra.cliente.nombre,
-      client_email:   datosCompra.cliente.email,
-      client_phone:   '—',
-      client_pickup:  datosCompra.cliente.pickup,
-      products:       'Gracias por tu compra. En breve te estaremos contactando para coordinar los detalles.',
-      payment_method: metodoTexto,
-      subtotal:       totalMostrar,
-      total:          totalMostrar,
-      to_email:       datosCompra.cliente.email,
+      name:      'Kindora',
+      to_email:  ADMIN_EMAIL,
+      order_id:  datosCompra.orderId,
+      order_date: new Date().toLocaleString('es-UY'),
+      titulo:    `📋 NUEVO PEDIDO — ${datosCompra.cliente.nombre}`,
+      contenido: contenidoAdmin,
+    });
+
+    // ── EMAIL AL CLIENTE ──
+    await emailjs.send(EMAILJS_SERVICE_ID, TEMPLATE_COMPRA, {
+      name:      'Kindora',
+      to_email:  datosCompra.cliente.email,
+      order_id:  datosCompra.orderId,
+      order_date: new Date().toLocaleString('es-UY'),
+      titulo:    `🛍️ ¡Gracias por tu compra, ${datosCompra.cliente.nombre}!`,
+      contenido: contenidoCliente,
     });
 
     return { success: true };
 
-  } 
+  } catch (error) {
+    console.error('Error EmailJS:', error);
+    return { success: false, error };
+  }
+}
   
  
 
