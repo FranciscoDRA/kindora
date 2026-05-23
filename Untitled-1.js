@@ -857,39 +857,59 @@ async function enviarCorreoContacto(formData) {
 
 async function enviarCorreoCompra(datosCompra) {
   const productosTexto = datosCompra.productos.map(p =>
-    `${p.nombre} x${p.cantidad} — $U ${((p.precio || 0) * (p.cantidad || 0)).toLocaleString('es-UY')}`
+    `• ${p.nombre} x${p.cantidad} — $U ${((p.precio || 0) * (p.cantidad || 0)).toLocaleString('es-UY')}`
   ).join('\n');
 
-  const esMercadoPago = datosCompra.metodoPago === 'mercadopago';
-
-  const params = {
-    order_id:      datosCompra.orderId,
-    order_date:    new Date().toLocaleString('es-UY'),
-    total_amount:  datosCompra.subtotal,
-    total_con_recargo: datosCompra.totalConRecargo,
-    client_name:   datosCompra.cliente.nombre,
-    client_email:  datosCompra.cliente.email,
-    client_pickup: datosCompra.cliente.pickup,
-    products:      productosTexto,
-  };
+  const metodoTexto = datosCompra.metodoPago === 'mercadopago'
+    ? 'Mercado Pago (+10%)'
+    : 'Transferencia bancaria';
 
   try {
-    // Al CLIENTE
+    // ── EMAIL AL ADMIN via EmailJS (template existente) ──
     await emailjs.send(EMAILJS_SERVICE_ID, TEMPLATE_COMPRA, {
-      ...params,
-      to_email: datosCompra.cliente.email,
+      order_id:       datosCompra.orderId,
+      order_date:     new Date().toLocaleString('es-UY'),
+      client_name:    datosCompra.cliente.nombre,
+      client_email:   datosCompra.cliente.email,
+      client_phone:   datosCompra.cliente.telefono || '—',
+      client_pickup:  datosCompra.cliente.pickup,
+      products:       productosTexto,
+      payment_method: metodoTexto,
+      subtotal:       datosCompra.subtotal,
+      total:          datosCompra.metodoPago === 'mercadopago'
+                        ? datosCompra.totalConRecargo
+                        : datosCompra.subtotal,
+      to_email:       ADMIN_EMAIL,
     });
 
-    // Al ADMIN — mismo template, mismo diseño, pero con datos extra en products
-    await emailjs.send(EMAILJS_SERVICE_ID, TEMPLATE_COMPRA, {
-      ...params,
-      to_email: ADMIN_EMAIL,
-      products: `Cliente: ${datosCompra.cliente.nombre} | ${datosCompra.cliente.email} | Tel: ${datosCompra.cliente.telefono || '—'} | Pago: ${datosCompra.metodoPago}\n\n${productosTexto}`,
+    // ── EMAIL AL CLIENTE via Web3Forms (gratis, sin template) ──
+    await fetch('https://api.web3forms.com/submit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        access_key: 'f81da6ac-3744-4c5b-9c57-b6a8de168c78',
+        subject:    `Tu pedido Kindora N° ${datosCompra.orderId} fue registrado ✓`,
+        from_name:  'Kindora',
+        to:         datosCompra.cliente.email,
+        replyto:    ADMIN_EMAIL,
+        message:
+`Hola ${datosCompra.cliente.nombre},
+
+¡Gracias por tu compra en Kindora! 🎉
+
+Tu pedido N° ${datosCompra.orderId} fue registrado correctamente.
+En breve te estaremos contactando para coordinar los detalles.
+
+Cualquier consulta escribinos a ${ADMIN_EMAIL}.
+
+— Valentina y Agustina, Kindora`,
+      })
     });
 
     return { success: true };
+
   } catch (error) {
-    console.error('Error EmailJS:', error);
+    console.error('Error enviando emails:', error);
     return { success: false, error };
   }
 }
